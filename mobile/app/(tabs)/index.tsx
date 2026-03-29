@@ -1,14 +1,21 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { get, ref } from 'firebase/database';
+import { useCallback, useEffect, useState } from 'react';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
+import { styles } from './index.styles';
 
 import { TopBar } from '@/components/navigation/top-bar';
 import { dashboardMockData } from '@/features/dashboard/mock-data';
+import { rtdb } from '@/features/firebase/client';
 import type { DashboardPackage, DashboardStat } from '@/features/dashboard/types';
 
 export default function HomeScreen() {
   // mock data now; swap to firebase provider later
   const { heading, liveLink, stats, packages, alerts } = dashboardMockData;
+  const [connectionStatus, setConnectionStatus] = useState<'idle' | 'checking' | 'connected' | 'failed'>('idle');
+  const [connectionMessage, setConnectionMessage] = useState<string>('Tap to test Firebase.');
+  const [latestPayload, setLatestPayload] = useState<unknown>(null);
 
   const statColor = (stat: DashboardStat) => {
     if (stat.kind === 'status') return '#0F172A';
@@ -39,10 +46,57 @@ export default function HomeScreen() {
     return Math.max(0, Math.min(raw * 100, 100));
   };
 
+  const runFirebaseTest = useCallback(async () => {
+    try {
+      setConnectionStatus('checking');
+      const snapshot = await get(ref(rtdb, 'demo/latest'));
+
+      if (!snapshot.exists()) {
+        setConnectionStatus('failed');
+        setConnectionMessage("Connected, but 'demo/latest' has no data.");
+        setLatestPayload(null);
+        return;
+      }
+
+      setConnectionStatus('connected');
+      setConnectionMessage('Connected to Realtime Database.');
+      setLatestPayload(snapshot.val());
+    } catch (error) {
+      setConnectionStatus('failed');
+      setConnectionMessage(error instanceof Error ? error.message : 'Unknown Firebase error.');
+      setLatestPayload(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    void runFirebaseTest();
+  }, [runFirebaseTest]);
+
   return (
     <View style={styles.page}>
       <TopBar />
       <ScrollView contentContainerStyle={styles.content}>
+        <View style={styles.testCard}>
+          <View style={styles.testHeader}>
+            <Text style={styles.testTitle}>Firebase Connection</Text>
+            <Text
+              style={[
+                styles.testStatus,
+                connectionStatus === 'connected' && styles.testStatusOk,
+                connectionStatus === 'failed' && styles.testStatusFail,
+              ]}>
+              {connectionStatus.toUpperCase()}
+            </Text>
+          </View>
+          <Text style={styles.testMessage}>{connectionMessage}</Text>
+          <Pressable onPress={runFirebaseTest} style={styles.testButton}>
+            <Text style={styles.testButtonText}>Run Test</Text>
+          </Pressable>
+          {latestPayload ? (
+            <Text style={styles.payloadText}>{JSON.stringify(latestPayload, null, 2)}</Text>
+          ) : null}
+        </View>
+
         <View style={styles.heroRow}>
           <View>
             <Text style={styles.heading}>{heading}</Text>
@@ -150,242 +204,3 @@ export default function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  page: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
-  content: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 120,
-    gap: 14,
-  },
-  heroRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    gap: 12,
-  },
-  heading: {
-    marginTop: 2,
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  livePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
-    backgroundColor: '#E2E8F0',
-  },
-  liveDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#10B981',
-  },
-  liveText: {
-    fontSize: 9,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-    color: '#334155',
-    fontWeight: '600',
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 10,
-  },
-  statCard: {
-    width: '31%',
-    minWidth: 104,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  statLabel: {
-    fontSize: 9,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-    color: '#64748B',
-    fontWeight: '600',
-  },
-  statValueRow: {
-    marginTop: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  statValue: {
-    fontSize: 18,
-    fontWeight: '900',
-  },
-  statSub: {
-    marginTop: 3,
-    color: '#64748B',
-    fontSize: 8,
-  },
-  sectionHeader: {
-    marginTop: 4,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  sectionTitle: {
-    fontSize: 20,
-    color: '#0F172A',
-    fontWeight: '800',
-  },
-  sectionAction: {
-    color: '#2563EB',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  packagesWrap: {
-    gap: 10,
-  },
-  packageCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    padding: 14,
-    gap: 10,
-  },
-  packageMain: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  packageIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  packageName: {
-    fontSize: 16,
-    color: '#0F172A',
-    fontWeight: '700',
-  },
-  packageId: {
-    marginTop: 2,
-    color: '#64748B',
-    fontSize: 12,
-  },
-  packageMeta: {
-    gap: 6,
-  },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  locationText: {
-    color: '#475569',
-    fontSize: 12,
-  },
-  progressTrack: {
-    height: 6,
-    borderRadius: 8,
-    backgroundColor: '#E2E8F0',
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-  },
-  damageText: {
-    fontSize: 10,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    color: '#64748B',
-    fontWeight: '700',
-  },
-  packageRight: {
-    marginTop: 2,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  statusPill: {
-    fontSize: 10,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 999,
-    overflow: 'hidden',
-  },
-  alertCard: {
-    marginTop: 2,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#FECACA',
-    padding: 14,
-    gap: 10,
-  },
-  alertHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  alertTitle: {
-    fontSize: 18,
-    color: '#0F172A',
-    fontWeight: '800',
-  },
-  alertItem: {
-    borderLeftWidth: 2,
-    paddingLeft: 10,
-    gap: 4,
-  },
-  alertType: {
-    fontSize: 10,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    fontWeight: '800',
-  },
-  alertMessage: {
-    fontSize: 14,
-    color: '#0F172A',
-    lineHeight: 20,
-  },
-  alertTime: {
-    fontSize: 11,
-    color: '#64748B',
-    textTransform: 'uppercase',
-  },
-  mapCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    overflow: 'hidden',
-  },
-  mapView: {
-    height: 170,
-  },
-  mapFooter: {
-    padding: 12,
-  },
-  mapTitle: {
-    color: '#0F172A',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  mapSub: {
-    marginTop: 2,
-    color: '#64748B',
-    fontSize: 12,
-  },
-});
