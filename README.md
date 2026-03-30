@@ -5,8 +5,9 @@ This project builds a classification model to identify four distinct driving beh
 
 ## Dataset Overview
 * **Source:** 
-    * [DRIVING BEHAVIOR DATASET (MPU6050)]("https://data.mendeley.com/datasets/jj3tw8kj6h/3")
-    * [DRIVING EVENTS (smartphone sensors)]("https://doi.org/10.7910/DVN/F5JZHF")
+    * [DRIVING BEHAVIOR DATASET (MPU6050)](https://data.mendeley.com/datasets/jj3tw8kj6h/3)
+    * [DRIVING EVENTS (smartphone sensors)](https://doi.org/10.7910/DVN/F5JZHF)
+
 * **Shape:** 1,114 rows × 12 columns
 * **Features:** 6 sensor channels (GyroX, GyroY, GyroZ, AccX, AccY, AccZ), alongside DriverID, TaskID, and timestamps.
 * **Data Quality:** Complete dataset with no missing values and no duplicates.
