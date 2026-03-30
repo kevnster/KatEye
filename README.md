@@ -12,21 +12,24 @@ This project builds a classification model to identify four distinct driving beh
 * **Features:** 6 sensor channels (GyroX, GyroY, GyroZ, AccX, AccY, AccZ), alongside DriverID, TaskID, and timestamps.
 * **Data Quality:** Complete dataset with no missing values and no duplicates.
 * **Sampling Rate:** ~1 Hz (approximately 1 sample per wall-clock second).
+    * Not a lot of data, so we need oversample using Sliding Window. 
 * **Target Classes:** 4 driving-event classes.
   * **Balance:** Fairly balanced (1.6x imbalance ratio). 
   * **Distribution:** Class 3 is the largest (31.4%), and Class 4 is the smallest (20.1%).
+    * More Sudden Left Turns, and less Sudden Break!
 
 ## Sensor Insights & EDA
-Initial exploratory data analysis reveals the following mechanical and statistical behaviors:
+
+Initial exploratory data analysis (Yukman, 2021) reveals the following mechanical and statistical behaviors:
 * **High Variance & Noise:** `GyroZ` exhibits the widest range (std = 12.0) and is the noisiest channel (51 identified outliers).
 * **Correlations:**
   * *Strong Positive:* `GyroZ` ↔ `AccY` (r = 0.82). These channels are heavily coupled, likely representing yaw-related motion.
   * *Moderate Negative:* `GyroX` ↔ `GyroZ` (r = -0.46) and `GyroX` ↔ `AccY` (r = -0.42).
 * **Low Signal Value:** `AccZ` hovers around -1.0 (acting primarily as the gravity component) and exhibits low variance, suggesting it may contribute little discriminative signal.
-* **Outliers:** 89 rows (8% of the data) have at least one channel with a z-score magnitude > 3 (`|z| > 3`). Robust scaling or clipping will be required during preprocessing.
+* **Outliers:** 89 rows (8% of the data) have at least one channel with a z-score magnitude > 3 (`|z| > 3`).  Scaling or clipping will be required during preprocessing.
 
 ## Baseline Architecture Plan
-The initial architecture plan explores a 1-Dimensional Convolutional Neural Network (CNN) configured as follows:
+The  architecture (Lokman, 2022) plan explores a 1-Dimensional Convolutional Neural Network (CNN) configured as follows:
 
 `Conv1D` → `ReLU` → `Conv1D` → `ReLU` → `MaxPool` → `Dropout` → `Flatten` → `Dense` → `ReLU` → `Dropout` → `Dense` → `Softmax`
 
