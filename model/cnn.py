@@ -32,6 +32,10 @@ from sklearn.metrics import (
     classification_report, confusion_matrix, ConfusionMatrixDisplay
 )
  
+# This interpreter replaces TFLite deprecated Interpreter
+from ai_edge_litert.interpreter import Interpreter
+
+
 # Reproducibility
 SEED = 0
 np.random.seed(SEED)
@@ -312,7 +316,10 @@ print("=" * 60)
 
 
 def build_cnn_model(window_size, n_channels, n_classes):
-    """Build the 1D CNN model using Keras Functional API.
+    """Build the 1D CNN model using Keras
+
+    Constraints:
+    - Being mindful of amount of filters, pool size and dense layers for space complexity 
     Reference: https://doi.org/10.12688/f1000research.73134.2
     
     """
@@ -321,7 +328,7 @@ def build_cnn_model(window_size, n_channels, n_classes):
     # --- Convolutional feature extraction ---
     # Conv Block 1: 16 filters, kernel=3
     x = keras.layers.Conv1D(
-            filters     = 16, 
+            filters     = 32, 
             kernel_size = 3, 
             padding     = "same", 
             name        = "conv1d_1"
@@ -331,7 +338,7 @@ def build_cnn_model(window_size, n_channels, n_classes):
  
     # Conv Block 2: 32 filters, kernel=3
     x = keras.layers.Conv1D(
-            filters     = 32, 
+            filters     = 64, 
             kernel_size = 3, 
             padding     = "same", 
             name        = "conv1d_2"
@@ -346,7 +353,7 @@ def build_cnn_model(window_size, n_channels, n_classes):
  
     # Classification head 
     x = keras.layers.Flatten(name = "flatten")(x)
-    x = keras.layers.Dense(32, name = "dense_1")(x)
+    x = keras.layers.Dense(64, name = "dense_1")(x)
     x = keras.layers.ReLU(name = "relu_3")(x)
     x = keras.layers.Dropout(0.4, name = "dropout_2")(x)
  
@@ -488,4 +495,164 @@ print(f"File size: {os.path.getsize(keras_path) / 1024:.1f} KB")
 
 
 # TODO TFLITE CONVERSION - int8
-# Run evals on normal TFLITE vs. TF
+print("\n" + "=" * 60)
+print("12: Converting to TFLite (INT8 quantized)")
+print("=" * 60)
+
+
+def representative_dataset_gen():
+    """Calibration data for INT8 quantization.
+    Uses a subset of training data to determine activation ranges."""
+    for i in range(min(100, len(X_train))):
+        sample = X_train[i : i + 1].astype(np.float32)
+        yield [sample]
+
+
+# --- Full float32 TFLite (for comparison) ---
+converter_f32 = tf.lite.TFLiteConverter.from_keras_model(model)
+tflite_f32 = converter_f32.convert()
+f32_path = os.path.join(OUTPUT_DIR, "driving_cnn_f32.tflite")
+with open(f32_path, "wb") as f:
+    f.write(tflite_f32)
+print(f"Float32 TFLite: {os.path.getsize(f32_path) / 1024:.1f} KB → {f32_path}")
+
+# --- INT8 fully quantized TFLite (for ESP32-S3) ---
+converter_int8 = tf.lite.TFLiteConverter.from_keras_model(model)
+converter_int8.optimizations = [tf.lite.Optimize.DEFAULT]
+converter_int8.representative_dataset = representative_dataset_gen
+converter_int8.target_spec.supported_ops = [
+    tf.lite.OpsSet.TFLITE_BUILTINS_INT8
+]
+converter_int8.inference_input_type  = tf.int8
+converter_int8.inference_output_type = tf.int8
+
+tflite_int8 = converter_int8.convert()
+int8_path = os.path.join(OUTPUT_DIR, "driving_cnn_int8.tflite")
+with open(int8_path, "wb") as f:
+    f.write(tflite_int8)
+print(f"INT8 TFLite:    {os.path.getsize(int8_path) / 1024:.1f} KB to {int8_path}")
+
+# VERIFY
+print("\n" + "=" * 60)
+print("13: Verifying TFLite model accuracy")
+print("=" * 60)
+
+# Load and test the INT8 model
+#interpreter = tf.lite.Interpreter(model_path=int8_path)
+interpreter = Interpreter(model_path=int8_path)
+
+interpreter.allocate_tensors()
+
+input_details  = interpreter.get_input_details()
+output_details = interpreter.get_output_details()
+
+print(f"TFLite input:  {input_details[0]['shape']} dtype={input_details[0]['dtype']}")
+print(f"TFLite output: {output_details[0]['shape']} dtype={output_details[0]['dtype']}")
+
+# Get quantization parameters for input
+input_scale = input_details[0]["quantization_parameters"]["scales"][0]
+input_zp    = input_details[0]["quantization_parameters"]["zero_points"][0]
+print(f"Input quantization: scale={input_scale:.6f}, zero_point={input_zp}")
+
+# Run inference on test set
+tflite_preds = []
+for i in range(len(X_test)):
+    sample = X_test[i : i + 1].astype(np.float32)
+
+    # Quantize input to INT8
+    sample_int8 = (sample / input_scale + input_zp).astype(np.int8)
+
+    interpreter.set_tensor(input_details[0]["index"], sample_int8)
+    interpreter.invoke()
+    output = interpreter.get_tensor(output_details[0]["index"])
+    tflite_preds.append(np.argmax(output, axis=1)[0])
+
+tflite_preds = np.array(tflite_preds)
+tflite_acc = np.mean(tflite_preds == y_test)
+
+print(f"\nTFLite INT8 Accuracy: {tflite_acc:.4f}")
+print(f"Keras Accuracy:       {test_acc:.4f}")
+print(f"Quantization loss:    {test_acc - tflite_acc:.4f}")
+
+
+print("\n" + "=" * 60)
+print("14: Generating C header for ESP32-S3 firmware")
+print("=" * 60)
+
+# Convert TFLite model bytes to C array
+def tflite_to_c_header(tflite_model_bytes, header_path, array_name="driving_cnn_model"):
+    """Convert TFLite model to a C header file for ESP32 embedding."""
+    with open(header_path, "w") as f:
+        f.write(f"// Auto-generated TFLite model for ESP32-S3\n")
+        f.write(f"// Model: 1D CNN Driving Behavior Classifier\n")
+        f.write(f"// Input:  INT8 tensor of shape (1, {WINDOW_SIZE}, {N_CHANNELS})\n")
+        f.write(f"// Output: INT8 tensor of shape (1, {N_CLASSES})\n")
+        f.write(f"// Classes: {', '.join(CLASS_NAMES)}\n")
+        f.write(f"// Input normalization (apply BEFORE quantization):\n")
+        for i, col in enumerate(SENSOR_COLS):
+            f.write(f"//   {col}: (raw - {train_mean[i]:.6f}) / {train_std[i]:.6f}\n")
+        f.write(f"// Input quantization: scale={input_scale:.6f}, "
+                f"zero_point={input_zp}\n")
+        f.write(f"//\n")
+        f.write(f"// Size: {len(tflite_model_bytes)} bytes\n\n")
+        f.write(f"#ifndef {array_name.upper()}_H\n")
+        f.write(f"#define {array_name.upper()}_H\n\n")
+        f.write(f"#include <stdint.h>\n\n")
+        f.write(f"const unsigned int {array_name}_len = {len(tflite_model_bytes)};\n")
+        f.write(f"alignas(8) const uint8_t {array_name}[] = {{\n")
+
+        # Write hex bytes, 12 per line
+        for i, byte in enumerate(tflite_model_bytes):
+            if i % 12 == 0:
+                f.write("  ")
+            f.write(f"0x{byte:02x}")
+            if i < len(tflite_model_bytes) - 1:
+                f.write(", ")
+            if (i + 1) % 12 == 0:
+                f.write("\n")
+
+        f.write(f"\n}};\n\n")
+        f.write(f"#endif // {array_name.upper()}_H\n")
+
+
+header_path = os.path.join(OUTPUT_DIR, "driving_cnn_model.h")
+tflite_to_c_header(tflite_int8, header_path)
+print(f"Saved C header → {header_path}")
+print(f"File size: {os.path.getsize(header_path) / 1024:.1f} KB")
+
+# Summary
+print("\n" + "=" * 60)
+print("PIPELINE COMPLETE ; SUMMARY")
+print("=" * 60)
+print(f"""
+Dataset:
+  Raw rows:          {len(df):,}
+  Sessions/events:   {n_sessions}
+  Windowed samples:  {len(X_all)} (window={WINDOW_SIZE}, hop={HOP_SIZE})
+  Train / Test:      {len(X_train)} / {len(X_test)}
+
+Model:
+  Architecture:      1D CNN (Conv1D→ReLU→Conv1D→ReLU→MaxPool→Dense→Softmax)
+  Parameters:        {total_params:,}
+  Filters:           16 → 32
+  Dense units:       32
+  Regularization:    Dropout(0.3) + Dropout(0.4) + class weights
+
+Training:
+  Epochs completed:  {len(history.history['loss'])}
+  Best val accuracy: {best_val_acc:.4f}
+  Best val loss:     {best_val_loss:.4f}
+
+Performance:
+  Keras test acc:    {test_acc:.4f}
+  TFLite INT8 acc:   {tflite_acc:.4f}
+  Quantization loss: {abs(test_acc - tflite_acc):.4f}
+
+Output files:
+  {OUTPUT_DIR}/training_results.png     — Learning curves + confusion matrix
+  {OUTPUT_DIR}/norm_params.npy          — Normalization mean/std for ESP32
+  {OUTPUT_DIR}/driving_cnn.keras        — Full Keras model
+  {OUTPUT_DIR}/driving_cnn_f32.tflite   — Float32 TFLite ({os.path.getsize(f32_path)/1024:.1f} KB)
+  {OUTPUT_DIR}/driving_cnn_int8.tflite  — INT8 TFLite ({os.path.getsize(int8_path)/1024:.1f} KB)
+  {OUTPUT_DIR}/driving_cnn_model.h      — C header for ESP32 firmware
+""")
