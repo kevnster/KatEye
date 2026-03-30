@@ -303,3 +303,189 @@ class_weight_dict = {i: w for i, w in enumerate(class_weights_array)}
 for i, name in enumerate(CLASS_NAMES):
     print(f"  {name}: weight = {class_weight_dict[i]:.3f}")
  
+# Build the 1D CNN for ESP32-S3
+# Reference CNN.md
+
+print("\n" + "=" * 60)
+print("7: Building 1D CNN model (ESP32-S3 optimized)")
+print("=" * 60)
+
+
+def build_cnn_model(window_size, n_channels, n_classes):
+    """Build the 1D CNN model using Keras Functional API.
+    Reference: https://doi.org/10.12688/f1000research.73134.2
+    
+    """
+    inputs = keras.Input(shape=(window_size, n_channels), name="sensor_input")
+ 
+    # --- Convolutional feature extraction ---
+    # Conv Block 1: 16 filters, kernel=3
+    x = keras.layers.Conv1D(
+            filters     = 16, 
+            kernel_size = 3, 
+            padding     = "same", 
+            name        = "conv1d_1"
+        )(inputs)
+    
+    x = keras.layers.ReLU(name="relu_1")(x) # max(x, 0)
+ 
+    # Conv Block 2: 32 filters, kernel=3
+    x = keras.layers.Conv1D(
+            filters     = 32, 
+            kernel_size = 3, 
+            padding     = "same", 
+            name        = "conv1d_2"
+        )(x)
+    x = keras.layers.ReLU(name = "relu_2")(x)
+ 
+    # Pooling + regularization
+    x = keras.layers.MaxPool1D(pool_size    = 2, 
+                               name         = "maxpool")(x)
+    
+    x = keras.layers.Dropout(0.3, name = "dropout_1")(x)
+ 
+    # Classification head 
+    x = keras.layers.Flatten(name = "flatten")(x)
+    x = keras.layers.Dense(32, name = "dense_1")(x)
+    x = keras.layers.ReLU(name = "relu_3")(x)
+    x = keras.layers.Dropout(0.4, name = "dropout_2")(x)
+ 
+    outputs = keras.layers.Dense(
+        n_classes, activation="softmax", name="output"
+    )(x)
+ 
+    model = keras.Model(inputs=inputs, outputs=outputs, name="DrivingCNN")
+    return model
+ 
+ 
+model = build_cnn_model(WINDOW_SIZE, N_CHANNELS, N_CLASSES) # Configs declared at the beginning
+ 
+model.compile(
+    optimizer   = keras.optimizers.Adam(learning_rate=LEARNING_RATE),
+    loss        = "sparse_categorical_crossentropy",
+    metrics     = ["accuracy"],
+)
+ 
+# Print architecture summary
+model.summary()
+ 
+ # Check size of initial model
+total_params = model.count_params()
+print(f"\nTotal parameters: {total_params:,}")
+print(f"Estimated INT8 model size: ~{total_params / 1024:.1f} KB")
+print(f"ESP32-S3 SRAM: 512 KB -> model fits comfortably")
+
+
+# TRAINING W/ Early Dropout
+print("\n" + "=" * 60)
+print("8: Training with early stopping")
+print("=" * 60)
+ 
+callbacks = [
+    keras.callbacks.EarlyStopping(
+        monitor="val_loss",
+        patience=PATIENCE,
+        restore_best_weights=True,
+        verbose=1,
+    ),
+    keras.callbacks.ReduceLROnPlateau(
+        monitor="val_loss",
+        factor=0.5,
+        patience=10,
+        min_lr=1e-6,
+        verbose=1,
+    ),
+]
+ 
+history = model.fit(
+    train_ds,
+    validation_data = test_ds,
+    epochs          = MAX_EPOCHS,
+    class_weight    = class_weight_dict,
+    callbacks       = callbacks,
+    verbose         = 1,
+)
+ 
+print(f"\nTraining completed after {len(history.history['loss'])} epochs")
+best_val_acc = max(history.history["val_accuracy"])
+best_val_loss = min(history.history["val_loss"])
+print(f"Best validation accuracy: {best_val_acc:.4f}")
+print(f"Best validation loss:     {best_val_loss:.4f}")
+
+
+# EVALUATION
+
+print("\n" + "=" * 60)
+print(" 9: Evaluation on test set")
+print("=" * 60)
+ 
+# Predict on test set
+y_pred_probs = model.predict(X_test, verbose=0)
+y_pred = np.argmax(y_pred_probs, axis=1)
+ 
+# Classification report
+print("\nClassification Report:")
+print(classification_report(
+    y_test, y_pred, target_names=CLASS_NAMES, digits=4
+))
+ 
+# Overall accuracy
+test_loss, test_acc = model.evaluate(test_ds, verbose=0)
+print(f"Test Loss:     {test_loss:.4f}")
+print(f"Test Accuracy: {test_acc:.4f}")
+ 
+
+# VISUALS
+
+print("\n" + "=" * 60)
+print(" 10: Generating visualizations")
+print("=" * 60)
+ 
+fig, axes = plt.subplots(1, 3, figsize=(18, 5))
+ 
+# --- Learning curve: Accuracy ---
+axes[0].plot(history.history["accuracy"], label="Train", linewidth=2)
+axes[0].plot(history.history["val_accuracy"], label="Validation", linewidth=2)
+axes[0].set_title("Model Accuracy", fontsize=14, fontweight="bold")
+axes[0].set_xlabel("Epoch")
+axes[0].set_ylabel("Accuracy")
+axes[0].legend()
+axes[0].grid(True, alpha=0.3)
+ 
+# --- Learning curve: Loss ---
+axes[1].plot(history.history["loss"], label="Train", linewidth=2)
+axes[1].plot(history.history["val_loss"], label="Validation", linewidth=2)
+axes[1].set_title("Model Loss", fontsize=14, fontweight="bold")
+axes[1].set_xlabel("Epoch")
+axes[1].set_ylabel("Loss")
+axes[1].legend()
+axes[1].grid(True, alpha=0.3)
+
+# CONFUSION MATRIX -- see feature strength for classification
+cm = confusion_matrix(y_test, y_pred)
+disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=CLASS_NAMES)
+disp.plot(ax=axes[2], cmap="Blues", values_format="d")
+axes[2].set_title("Confusion Matrix", fontsize=14, fontweight="bold")
+axes[2].set_xticklabels(CLASS_NAMES, rotation=30, ha="right", fontsize=8)
+axes[2].set_yticklabels(CLASS_NAMES, fontsize=8)
+ 
+plt.tight_layout()
+plt.savefig(os.path.join(OUTPUT_DIR, "training_results.png"), dpi=150,
+            bbox_inches="tight")
+plt.close()
+print("Saved to training_results.png")
+
+
+# SAVING
+print("\n" + "=" * 60)
+print(" 11: Saving Keras model")
+print("=" * 60)
+ 
+keras_path = os.path.join(OUTPUT_DIR, "driving_cnn.keras")
+model.save(keras_path)
+print(f"Saved Keras model → {keras_path}")
+print(f"File size: {os.path.getsize(keras_path) / 1024:.1f} KB")
+
+
+# TODO TFLITE CONVERSION - int8
+# Run evals on normal TFLITE vs. TF
