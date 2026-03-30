@@ -3,7 +3,7 @@ import { get, ref } from 'firebase/database';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
-import { styles } from './index.styles';
+import { styles } from '@/features/dashboard/styles/index.styles';
 
 import { TopBar } from '@/components/navigation/top-bar';
 import { dashboardMockData } from '@/features/dashboard/mock-data';

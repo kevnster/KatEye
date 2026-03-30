@@ -1,23 +1,24 @@
 import { StyleSheet } from 'react-native';
+import { AppTheme } from '@/styles/app-theme';
 
 export const styles = StyleSheet.create({
   page: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: AppTheme.colors.pageBg,
   },
   content: {
-    paddingHorizontal: 20,
+    paddingHorizontal: AppTheme.spacing.xl,
     paddingTop: 16,
-    paddingBottom: 120,
-    gap: 14,
+    paddingBottom: AppTheme.spacing.pageBottomInset,
+    gap: AppTheme.spacing.lg,
   },
   testCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    backgroundColor: AppTheme.colors.surface,
+    borderRadius: AppTheme.radius.lg,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    padding: 12,
-    gap: 8,
+    borderColor: AppTheme.colors.border,
+    padding: AppTheme.spacing.md,
+    gap: AppTheme.spacing.sm,
   },
   testHeader: {
     flexDirection: 'row',
@@ -25,44 +26,44 @@ export const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   testTitle: {
-    fontSize: 14,
-    color: '#0F172A',
+    fontSize: AppTheme.fontSize.titleSm,
+    color: AppTheme.colors.textPrimary,
     fontWeight: '700',
   },
   testStatus: {
-    fontSize: 10,
+    fontSize: AppTheme.fontSize.md,
     fontWeight: '800',
-    color: '#64748B',
+    color: AppTheme.colors.textMuted,
   },
   testStatusOk: {
-    color: '#16A34A',
+    color: AppTheme.colors.success,
   },
   testStatusFail: {
-    color: '#DC2626',
+    color: AppTheme.colors.danger,
   },
   testMessage: {
-    fontSize: 12,
-    color: '#475569',
+    fontSize: AppTheme.fontSize.body,
+    color: AppTheme.colors.textSecondary,
   },
   testButton: {
     alignSelf: 'flex-start',
-    backgroundColor: '#2563EB',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    backgroundColor: AppTheme.colors.primary,
+    borderRadius: AppTheme.radius.sm,
+    paddingHorizontal: AppTheme.spacing.md,
+    paddingVertical: AppTheme.spacing.sm,
   },
   testButtonText: {
-    color: '#FFFFFF',
+    color: AppTheme.colors.surface,
     fontSize: 12,
     fontWeight: '700',
   },
   payloadText: {
-    marginTop: 4,
+    marginTop: AppTheme.spacing.xs,
     fontSize: 11,
-    color: '#0F172A',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 8,
-    padding: 8,
+    color: AppTheme.colors.textPrimary,
+    backgroundColor: AppTheme.colors.pageBg,
+    borderRadius: AppTheme.radius.sm,
+    padding: AppTheme.spacing.sm,
     fontFamily: 'monospace',
   },
   heroRow: {
@@ -73,30 +74,30 @@ export const styles = StyleSheet.create({
   },
   heading: {
     marginTop: 2,
-    fontSize: 22,
+    fontSize: AppTheme.fontSize.hero,
     fontWeight: '800',
-    color: '#0F172A',
+    color: AppTheme.colors.textPrimary,
   },
   livePill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 10,
+    paddingHorizontal: AppTheme.fontSize.md,
     paddingVertical: 6,
-    borderRadius: 10,
-    backgroundColor: '#E2E8F0',
+    borderRadius: AppTheme.radius.md,
+    backgroundColor: AppTheme.colors.border,
   },
   liveDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#10B981',
+    backgroundColor: AppTheme.colors.liveDot,
   },
   liveText: {
     fontSize: 9,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
-    color: '#334155',
+    color: AppTheme.colors.textSecondary,
     fontWeight: '600',
   },
   statsGrid: {
@@ -108,18 +109,18 @@ export const styles = StyleSheet.create({
   statCard: {
     width: '31%',
     minWidth: 104,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    backgroundColor: AppTheme.colors.surface,
+    borderRadius: AppTheme.radius.lg,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    paddingHorizontal: 12,
+    borderColor: AppTheme.colors.border,
+    paddingHorizontal: AppTheme.spacing.md,
     paddingVertical: 10,
   },
   statLabel: {
     fontSize: 9,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
-    color: '#64748B',
+    color: AppTheme.colors.textMuted,
     fontWeight: '600',
   },
   statValueRow: {
@@ -134,7 +135,7 @@ export const styles = StyleSheet.create({
   },
   statSub: {
     marginTop: 3,
-    color: '#64748B',
+    color: AppTheme.colors.textMuted,
     fontSize: 8,
   },
   sectionHeader: {
@@ -144,12 +145,12 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sectionTitle: {
-    fontSize: 20,
-    color: '#0F172A',
+    fontSize: AppTheme.fontSize.heading,
+    color: AppTheme.colors.textPrimary,
     fontWeight: '800',
   },
   sectionAction: {
-    color: '#2563EB',
+    color: AppTheme.colors.primary,
     fontSize: 12,
     fontWeight: '600',
   },
@@ -157,11 +158,11 @@ export const styles = StyleSheet.create({
     gap: 10,
   },
   packageCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    backgroundColor: AppTheme.colors.surface,
+    borderRadius: AppTheme.radius.lg,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    padding: 14,
+    borderColor: AppTheme.colors.border,
+    padding: AppTheme.spacing.lg,
     gap: 10,
   },
   packageMain: {
@@ -178,12 +179,12 @@ export const styles = StyleSheet.create({
   },
   packageName: {
     fontSize: 16,
-    color: '#0F172A',
+    color: AppTheme.colors.textPrimary,
     fontWeight: '700',
   },
   packageId: {
     marginTop: 2,
-    color: '#64748B',
+    color: AppTheme.colors.textMuted,
     fontSize: 12,
   },
   packageMeta: {
@@ -195,13 +196,13 @@ export const styles = StyleSheet.create({
     gap: 6,
   },
   locationText: {
-    color: '#475569',
+    color: AppTheme.colors.textSecondary,
     fontSize: 12,
   },
   progressTrack: {
     height: 6,
-    borderRadius: 8,
-    backgroundColor: '#E2E8F0',
+    borderRadius: AppTheme.radius.sm,
+    backgroundColor: AppTheme.colors.border,
     overflow: 'hidden',
   },
   progressFill: {
@@ -211,7 +212,7 @@ export const styles = StyleSheet.create({
     fontSize: 10,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
-    color: '#64748B',
+    color: AppTheme.colors.textMuted,
     fontWeight: '700',
   },
   packageRight: {
@@ -226,16 +227,16 @@ export const styles = StyleSheet.create({
     textTransform: 'uppercase',
     paddingHorizontal: 8,
     paddingVertical: 5,
-    borderRadius: 999,
+    borderRadius: AppTheme.radius.pill,
     overflow: 'hidden',
   },
   alertCard: {
     marginTop: 2,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    backgroundColor: AppTheme.colors.surface,
+    borderRadius: AppTheme.radius.lg,
     borderWidth: 1,
     borderColor: '#FECACA',
-    padding: 14,
+    padding: AppTheme.spacing.lg,
     gap: 10,
   },
   alertHeader: {
@@ -245,7 +246,7 @@ export const styles = StyleSheet.create({
   },
   alertTitle: {
     fontSize: 18,
-    color: '#0F172A',
+    color: AppTheme.colors.textPrimary,
     fontWeight: '800',
   },
   alertItem: {
@@ -261,35 +262,35 @@ export const styles = StyleSheet.create({
   },
   alertMessage: {
     fontSize: 14,
-    color: '#0F172A',
+    color: AppTheme.colors.textPrimary,
     lineHeight: 20,
   },
   alertTime: {
     fontSize: 11,
-    color: '#64748B',
+    color: AppTheme.colors.textMuted,
     textTransform: 'uppercase',
   },
   mapCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    backgroundColor: AppTheme.colors.surface,
+    borderRadius: AppTheme.radius.lg,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: AppTheme.colors.border,
     overflow: 'hidden',
   },
   mapView: {
     height: 170,
   },
   mapFooter: {
-    padding: 12,
+    padding: AppTheme.spacing.md,
   },
   mapTitle: {
-    color: '#0F172A',
-    fontSize: 15,
+    color: AppTheme.colors.textPrimary,
+    fontSize: AppTheme.fontSize.title,
     fontWeight: '700',
   },
   mapSub: {
     marginTop: 2,
-    color: '#64748B',
+    color: AppTheme.colors.textMuted,
     fontSize: 12,
   },
 });
