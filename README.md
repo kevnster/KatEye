@@ -42,6 +42,10 @@ At this frequency, a standard 2-second time window captures only **2 samples**. 
 
 **Pivot/Current Strategy:** The repository includes pre-computed feature files (spanning window sizes of 4 to 20, with 61 engineered features each). This suggests that the optimal workflow for this dataset relies on **statistical feature engineering over larger sliding windows**, rather than feeding raw, low-frequency sensor signals directly into a CNN.
 
+## CNN Training results
+
+![training_results](model/output/training_results.png)
+
 ## References
 
 - Amidi Afshine, Amidi Shervine. Convolutional Neural Networks. https://stanford.edu/~shervine/teaching/cs-230/cheatsheet-convolutional-neural-networks/

@@ -49,7 +49,7 @@ N_CHANNELS    = 6       # AccX, AccY, AccZ, GyroX, GyroY, GyroZ
 N_CLASSES     = 4       # 4 driving behaviors
 BATCH_SIZE    = 16      # Small batch small dataset
 MAX_EPOCHS    = 200
-PATIENCE      = 25      # Early stopping patience
+PATIENCE      = 15      # Early stopping patience (reduced to stop before overfitting)
 LEARNING_RATE = 1e-3
  
 SENSOR_COLS = ["AccX", "AccY", "AccZ", "GyroX", "GyroY", "GyroZ"] # sensor_raw.csv
@@ -177,17 +177,29 @@ print("=" * 60)
 sgkf = StratifiedGroupKFold(n_splits=3, shuffle=True, random_state=SEED)
 train_idx, test_idx = next(sgkf.split(X_all, y_all, groups_all))
  
-X_train_raw, y_train = X_all[train_idx], y_all[train_idx]
-X_test_raw,  y_test  = X_all[test_idx],  y_all[test_idx]
- 
-print(f"Train: {len(X_train_raw)} windows  |  Test: {len(X_test_raw)} windows")
+X_trainval_raw, y_trainval = X_all[train_idx], y_all[train_idx]
+X_test_raw,    y_test     = X_all[test_idx],  y_all[test_idx]
+
+# Further split train into train + val (80/20 stratified)
+# This keeps the test set completely held out from model selection.
+from sklearn.model_selection import train_test_split
+X_train_raw, X_val_raw, y_train, y_val = train_test_split(
+    X_trainval_raw, y_trainval,
+    test_size=0.2, stratify=y_trainval, random_state=SEED
+)
+
+print(f"Train: {len(X_train_raw)} windows  |  Val: {len(X_val_raw)} windows  |  Test: {len(X_test_raw)} windows")
 print(f"Train drivers: {np.unique(groups_all[train_idx])}")
 print(f"Test  drivers: {np.unique(groups_all[test_idx])}")
- 
+
 print(f"\nTrain class distribution:")
 for i, name in enumerate(CLASS_NAMES):
     print(f"  {name}: {np.sum(y_train == i)}")
-    
+
+print(f"Val class distribution:")
+for i, name in enumerate(CLASS_NAMES):
+    print(f"  {name}: {np.sum(y_val == i)}")
+
 print(f"Test class distribution:")
 for i, name in enumerate(CLASS_NAMES):
     print(f"  {name}: {np.sum(y_test == i)}")
@@ -206,6 +218,7 @@ train_std  = X_train_raw.std(axis=(0, 1))   # shape: (6,)
 train_std[train_std == 0] = 1.0             # Prevent division by zero
  
 X_train = (X_train_raw - train_mean) / train_std
+X_val   = (X_val_raw   - train_mean) / train_std
 X_test  = (X_test_raw  - train_mean) / train_std
  
 print("Per-channel normalization stats:")
@@ -232,7 +245,7 @@ print("\n" + "=" * 60)
 print("5: Building tf.data pipeline with on-the-fly augmentation")
 print("=" * 60)
  
-GAUSSIAN_STD = 0.05
+GAUSSIAN_STD = 0.08
 JITTER_MIN, JITTER_MAX = 0.9, 1.1
 DC_OFFSET = 0.02
  
@@ -274,13 +287,20 @@ train_ds = (
     .prefetch(tf.data.AUTOTUNE)
 )
  
-# Build test dataset (NO augmentation)
+# Build validation dataset (NO augmentation) — used for early stopping / LR scheduling
+val_ds = (
+    tf.data.Dataset.from_tensor_slices((X_val, y_val))
+    .batch(BATCH_SIZE)
+    .prefetch(tf.data.AUTOTUNE)
+)
+
+# Build test dataset (NO augmentation) — held out, only used for final evaluation
 test_ds = (
     tf.data.Dataset.from_tensor_slices((X_test, y_test))
     .batch(BATCH_SIZE)
     .prefetch(tf.data.AUTOTUNE)
 )
- 
+
 # Verify shapes
 for batch_x, batch_y in train_ds.take(1):
     print(f"Train batch shape: X={batch_x.shape}, y={batch_y.shape}")
@@ -349,7 +369,7 @@ def build_cnn_model(window_size, n_channels, n_classes):
     x = keras.layers.MaxPool1D(pool_size    = 2, 
                                name         = "maxpool")(x)
     
-    x = keras.layers.Dropout(0.3, name = "dropout_1")(x)
+    x = keras.layers.Dropout(0.4, name = "dropout_1")(x)
  
     # Classification head 
     x = keras.layers.Flatten(name = "flatten")(x)
@@ -406,7 +426,7 @@ callbacks = [
  
 history = model.fit(
     train_ds,
-    validation_data = test_ds,
+    validation_data = val_ds,
     epochs          = MAX_EPOCHS,
     class_weight    = class_weight_dict,
     callbacks       = callbacks,
