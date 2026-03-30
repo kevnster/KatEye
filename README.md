@@ -4,7 +4,9 @@
 This project builds a classification model to identify four distinct driving behaviors using attitude sensor data, specifically combining gyroscope and accelerometer readings.
 
 ## Dataset Overview
-* **Source:** [DRIVING BEHAVIOR DATASET]("https://data.mendeley.com/datasets/jj3tw8kj6h/3")
+* **Source:** 
+    * [DRIVING BEHAVIOR DATASET (MPU6050)]("https://data.mendeley.com/datasets/jj3tw8kj6h/3")
+    * [DRIVING EVENTS (smartphone sensors)]("https://doi.org/10.7910/DVN/F5JZHF")
 * **Shape:** 1,114 rows × 12 columns
 * **Features:** 6 sensor channels (GyroX, GyroY, GyroZ, AccX, AccY, AccZ), alongside DriverID, TaskID, and timestamps.
 * **Data Quality:** Complete dataset with no missing values and no duplicates.
@@ -39,6 +41,8 @@ At this frequency, a standard 2-second time window captures only **2 samples**. 
 ## References
 
 - Amidi Afshine, Amidi Shervine. Convolutional Neural Networks. https://stanford.edu/~shervine/teaching/cs-230/cheatsheet-convolutional-neural-networks/
+
+- Goh, Vik Tor; Jamal Mohd Lokman, Eilham Hakimie; Yap, Timothy Tzen Vun; Ng, Hu, 2021, "Driving Events", https://doi.org/10.7910/DVN/F5JZHF, Harvard Dataverse, V1
 
 - Jamal Mohd Lokman EH, Goh VT, Yap TTV and Ng H. Driving event recognition using machine learning and smartphones [version 2; peer review: 2 approved]. F1000Research 2022, 11:57 (https://doi.org/10.12688/f1000research.73134.2)
 
