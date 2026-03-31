@@ -4,7 +4,7 @@ An end-to-end machine learning pipeline that classifies driving behaviors from I
 
 ## TLDR
 
-The system identifies four driving events in real time from a 6-axis inertial measurement unit (MPU6050):
+The system identifies 9 driving events in real time from a 6-axis inertial measurement unit (MPU6050):
 
 | Class | Driving Event         |
 |-------|-----------------------|
@@ -18,7 +18,12 @@ The system identifies four driving events in real time from a 6-axis inertial me
 | 7     | Left                  |
 | 8     | Right                 |
 
+
 Raw sensor streams are windowed, normalized, and fed into a lightweight 1D CNN (~5,108 parameters) that runs as a quantized INT8 model on a ESP32-S3 (FREENOVE)
+
+The point of this is to embed the quantized model to a small ESP32 so that it can classify truck driving behavior using edge compute.
+- The main motivation is to reduce power consumption and latency when classifying driving behavior using IoT
+- Compared to sending raw sensor data to the cloud -- which is more resource intensive -- edge compute helps reduce this power draw.
 
 ---
 
