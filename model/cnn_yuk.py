@@ -26,7 +26,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import tensorflow as tf
 from tensorflow import keras
-from sklearn.model_selection import StratifiedGroupKFold
+from sklearn.model_selection import StratifiedGroupKFold, train_test_split
+
 from sklearn.utils.class_weight import compute_class_weight
 from sklearn.metrics import (
     classification_report, confusion_matrix, ConfusionMatrixDisplay
@@ -52,6 +53,7 @@ MAX_EPOCHS    = 200
 PATIENCE      = 15      # Early stopping patience (reduced to stop before overfitting)
 LEARNING_RATE = 1e-3
  
+# sensor_raw.csv
 SENSOR_COLS = ["AccX", "AccY", "AccZ", "GyroX", "GyroY", "GyroZ"] # sensor_raw.csv
 CLASS_NAMES = [
     "Sudden Accel",       # Original label 1 → index 0
@@ -59,11 +61,29 @@ CLASS_NAMES = [
     "Sudden Left Turn",   # Original label 3 → index 2
     "Sudden Brake",       # Original label 4 → index 3
 ]
+"""
+
+# driving_events.csv
+SENSOR_COLS = ['TIME', 'ACCEL_X', 'ACCEL_Y', 'ACCEL_Z', 'GYRO_X', 'GYRO_Y', 'GYRO_Z'] 
+
+CLASS_NAMES = [
+    "Accelerate",      
+    "Aggressive Accelerate",  
+    "Aggressive Brake",   
+    "Aggressive Left",      
+    "Aggressive Right",      
+    "Brake",  
+    "Idling",   
+    "Left",   
+    "Right",   
+]"""
  
 OUTPUT_DIR = "model/output"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 RAW_SENSOR_DATA_PATH = "./data/sensor_raw.csv"
+#DRIVING_EVENT_DATA_PATH = "./data/driving_events.csv"
+
 # Housekeeping
 print("=" * 60)
 print("1 - Loading data and splitting into sessions")
@@ -182,7 +202,6 @@ X_test_raw,    y_test     = X_all[test_idx],  y_all[test_idx]
 
 # Further split train into train + val (80/20 stratified)
 # This keeps the test set completely held out from model selection.
-from sklearn.model_selection import train_test_split
 X_train_raw, X_val_raw, y_train, y_val = train_test_split(
     X_trainval_raw, y_trainval,
     test_size=0.2, stratify=y_trainval, random_state=SEED
