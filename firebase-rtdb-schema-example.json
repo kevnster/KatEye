@@ -1,0 +1,150 @@
+{
+  "packages": {
+    "pkg_schema_example": {
+      "latest": {
+        "batchId": "1711733370000_1711733385000",
+        "windowStartTs": 1711733370000,
+        "windowEndTs": 1711733385000,
+        "windowDurationMs": 15000,
+        "isCritical": false,
+        "events": {
+          "alive": {
+            "ts": 1711733370080,
+            "accel": { "x": 0.05, "y": -0.02, "z": 0.99 }
+          }
+        }
+      },
+      "readings": {
+        "1711733280000_1711733295000": {
+          "batchId": "1711733280000_1711733295000",
+          "windowStartTs": 1711733280000,
+          "windowEndTs": 1711733295000,
+          "windowDurationMs": 15000,
+          "isCritical": false,
+          "events": {
+            "alive": {
+              "ts": 1711733280100,
+              "accel": { "x": 0.05, "y": -0.02, "z": 0.99 }
+            }
+          }
+        },
+        "1711733295000_1711733310000": {
+          "batchId": "1711733295000_1711733310000",
+          "windowStartTs": 1711733295000,
+          "windowEndTs": 1711733310000,
+          "windowDurationMs": 15000,
+          "isCritical": false,
+          "events": {
+            "alive": {
+              "ts": 1711733295080,
+              "accel": { "x": 0.05, "y": -0.03, "z": 0.98 }
+            }
+          }
+        },
+        "1711733310000_1711733325000": {
+          "batchId": "1711733310000_1711733325000",
+          "windowStartTs": 1711733310000,
+          "windowEndTs": 1711733325000,
+          "windowDurationMs": 15000,
+          "isCritical": false,
+          "events": {
+            "alive": {
+              "ts": 1711733310060,
+              "accel": { "x": 0.06, "y": -0.02, "z": 0.99 }
+            }
+          }
+        },
+        "1711733325000_1711733340000": {
+          "batchId": "1711733325000_1711733340000",
+          "windowStartTs": 1711733325000,
+          "windowEndTs": 1711733340000,
+          "windowDurationMs": 15000,
+          "isCritical": true,
+          "events": {
+            "e0": {
+              "ts": 1711733325120,
+              "accel": { "x": 0.02, "y": -0.01, "z": 1.0 }
+            },
+            "e1": {
+              "ts": 1711733331050,
+              "accel": { "x": 0.11, "y": -0.07, "z": 0.97 }
+            },
+            "e2": {
+              "ts": 1711733336820,
+              "accel": { "x": 2.4, "y": -1.1, "z": 0.3 }
+            },
+            "e3": {
+              "ts": 1711733339400,
+              "accel": { "x": 0.15, "y": -0.09, "z": 0.96 }
+            }
+          }
+        },
+        "1711733340000_1711733355000": {
+          "batchId": "1711733340000_1711733355000",
+          "windowStartTs": 1711733340000,
+          "windowEndTs": 1711733355000,
+          "windowDurationMs": 15000,
+          "isCritical": false,
+          "events": {
+            "alive": {
+              "ts": 1711733340120,
+              "accel": { "x": 0.04, "y": -0.02, "z": 0.99 }
+            }
+          }
+        },
+        "1711733355000_1711733370000": {
+          "batchId": "1711733355000_1711733370000",
+          "windowStartTs": 1711733355000,
+          "windowEndTs": 1711733370000,
+          "windowDurationMs": 15000,
+          "isCritical": true,
+          "events": {
+            "anomaly_0": {
+              "ts": 1711733355180,
+              "anomaly": true,
+              "accel": { "x": 0.18, "y": 0.21, "z": 0.42 }
+            },
+            "anomaly_1": {
+              "ts": 1711733356950,
+              "anomaly": true,
+              "accel": { "x": -1.62, "y": 0.88, "z": 2.95 }
+            },
+            "anomaly_2": {
+              "ts": 1711733359220,
+              "anomaly": true,
+              "accel": { "x": 3.1, "y": -2.04, "z": -0.55 }
+            },
+            "anomaly_3": {
+              "ts": 1711733362100,
+              "anomaly": true,
+              "accel": { "x": 0.09, "y": 0.06, "z": 3.15 }
+            },
+            "anomaly_4": {
+              "ts": 1711733364880,
+              "anomaly": true,
+              "accel": { "x": -2.91, "y": 1.74, "z": 0.62 }
+            },
+            "anomaly_5": {
+              "ts": 1711733368620,
+              "anomaly": true,
+              "accel": { "x": 1.25, "y": -3.02, "z": 1.88 }
+            }
+          }
+        },
+        "1711733370000_1711733385000": {
+          "batchId": "1711733370000_1711733385000",
+          "windowStartTs": 1711733370000,
+          "windowEndTs": 1711733385000,
+          "windowDurationMs": 15000,
+          "isCritical": false,
+          "events": {
+            "alive": {
+              "ts": 1711733370080,
+              "accel": { "x": 0.05, "y": -0.02, "z": 0.99 }
+            }
+          }
+        }
+      }
+    }
+  }
+}
