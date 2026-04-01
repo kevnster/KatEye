@@ -3,7 +3,6 @@ import numpy as np
 import tensorflow as tf
 from ai_edge_litert.interpreter import Interpreter
 
-
 def convert_to_tflite(model, X_train, output_dir, model_name="driving_cnn"):
     """
     Converts a trained Keras model to two TFLite formats:
@@ -29,16 +28,12 @@ def convert_to_tflite(model, X_train, output_dir, model_name="driving_cnn"):
         ValueError — if X_train is empty or output_dir cannot be created
     """
 
-    # ------------------------------------------------------------------ #
     # Guard clauses                                                        #
-    # ------------------------------------------------------------------ #
     if len(X_train) == 0:
         raise ValueError("X_train is empty — cannot generate representative dataset")
     os.makedirs(output_dir, exist_ok=True)
 
-    # ------------------------------------------------------------------ #
     # Representative dataset (calibration for INT8)                       #
-    # ------------------------------------------------------------------ #
     n_calibration = min(100, len(X_train))
 
     def representative_dataset_gen():
@@ -46,9 +41,8 @@ def convert_to_tflite(model, X_train, output_dir, model_name="driving_cnn"):
             sample = X_train[i : i + 1].astype(np.float32)
             yield [sample]
 
-    # ------------------------------------------------------------------ #
-    # Float32 TFLite — baseline, no quantisation                         #
-    # ------------------------------------------------------------------ #
+    # Float32 TFLite — baseline, no quantisation   
+
     converter_f32  = tf.lite.TFLiteConverter.from_keras_model(model)
     tflite_f32     = converter_f32.convert()
     f32_path       = os.path.join(output_dir, f"{model_name}_f32.tflite")
@@ -56,9 +50,7 @@ def convert_to_tflite(model, X_train, output_dir, model_name="driving_cnn"):
         f.write(tflite_f32)
     print(f"Float32 TFLite : {os.path.getsize(f32_path) / 1024:.1f} KB → {f32_path}")
 
-    # ------------------------------------------------------------------ #
     # INT8 fully quantised TFLite — ESP32-S3 deployment target           #
-    # ------------------------------------------------------------------ #
     converter_int8                            = tf.lite.TFLiteConverter.from_keras_model(model)
     converter_int8.optimizations              = [tf.lite.Optimize.DEFAULT]
     converter_int8.representative_dataset     = representative_dataset_gen
@@ -107,9 +99,7 @@ def verify_tflite(int8_path, X_test, y_test, keras_test_acc):
         ValueError        — if X_test and y_test are mismatched
     """
 
-    # ------------------------------------------------------------------ #
     # Guard clauses                                                        #
-    # ------------------------------------------------------------------ #
     if not os.path.exists(int8_path):
         raise FileNotFoundError(f"TFLite model not found: {int8_path}")
     if len(X_test) != len(y_test):
@@ -117,9 +107,7 @@ def verify_tflite(int8_path, X_test, y_test, keras_test_acc):
             f"X_test and y_test length mismatch: {len(X_test)} vs {len(y_test)}"
         )
 
-    # ------------------------------------------------------------------ #
     # Load interpreter and inspect tensors                                #
-    # ------------------------------------------------------------------ #
     interpreter = Interpreter(model_path=int8_path)
     interpreter.allocate_tensors()
 
@@ -133,9 +121,7 @@ def verify_tflite(int8_path, X_test, y_test, keras_test_acc):
     input_zp    = input_details[0]["quantization_parameters"]["zero_points"][0]
     print(f"Input quantization : scale={input_scale:.6f}, zero_point={input_zp}")
 
-    # ------------------------------------------------------------------ #
     # Run inference sample-by-sample                                      #
-    # ------------------------------------------------------------------ #
     tflite_preds = []
     for i in range(len(X_test)):
         sample      = X_test[i : i + 1].astype(np.float32)
@@ -149,9 +135,7 @@ def verify_tflite(int8_path, X_test, y_test, keras_test_acc):
     tflite_preds = np.array(tflite_preds)
     tflite_acc   = float(np.mean(tflite_preds == y_test))
 
-    # ------------------------------------------------------------------ #
     # Verification printout                                               #
-    # ------------------------------------------------------------------ #
     quant_loss = keras_test_acc - tflite_acc
     print(f"\nKeras accuracy   : {keras_test_acc:.4f}")
     print(f"TFLite INT8 acc  : {tflite_acc:.4f}")
@@ -216,9 +200,7 @@ def export_c_header(
         ValueError — if train_mean / train_std length doesn't match n_channels
     """
 
-    # ------------------------------------------------------------------ #
     # Guard clauses                                                        #
-    # ------------------------------------------------------------------ #
     if len(train_mean) != n_channels or len(train_std) != n_channels:
         raise ValueError(
             f"train_mean/train_std length ({len(train_mean)}/{len(train_std)}) "
@@ -226,9 +208,8 @@ def export_c_header(
         )
     os.makedirs(output_dir, exist_ok=True)
 
-    # ------------------------------------------------------------------ #
     # Write header                                                        #
-    # ------------------------------------------------------------------ #
+
     header_path = os.path.join(output_dir, filename)
     guard       = array_name.upper() + "_H"
 
@@ -272,9 +253,7 @@ def export_c_header(
         f.write("\n};\n\n")
         f.write(f"#endif // {guard}\n")
 
-    # ------------------------------------------------------------------ #
     # Verification printout                                               #
-    # ------------------------------------------------------------------ #
     print(f"Saved C header → {header_path}")
     print(f"File size      : {os.path.getsize(header_path) / 1024:.1f} KB")
     print(f"Model bytes    : {len(tflite_int8):,}")
