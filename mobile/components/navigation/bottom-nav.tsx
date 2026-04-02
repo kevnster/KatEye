@@ -3,10 +3,12 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { PlatformPressable } from '@react-navigation/elements';
 import { useLinkBuilder, useTheme } from '@react-navigation/native';
 import type { ComponentProps } from 'react';
+import { useMemo } from 'react';
 import { Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { styles } from '@/components/navigation/bottom-nav.styles';
+import { createBottomNavStyles } from '@/components/navigation/bottom-nav.styles';
+import { useAppTheme } from '@/context/theme';
 
 const TAB_CONFIG: Record<
   string,
@@ -21,6 +23,8 @@ const TAB_CONFIG: Record<
 export function BottomNav({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
+  const { colors: appColors } = useAppTheme();
+  const styles = useMemo(() => createBottomNavStyles(appColors), [appColors]);
   const { buildHref } = useLinkBuilder();
 
   return (
@@ -60,7 +64,7 @@ export function BottomNav({ state, descriptors, navigation }: BottomTabBarProps)
             testID={options.tabBarButtonTestID}
             onPress={onPress}
             onLongPress={onLongPress}
-            style={[styles.navItem, isFocused && styles.navItemActive]}>
+            style={[styles.navItem, isFocused && { backgroundColor: appColors.navActive }]}>
             <MaterialCommunityIcons
               name={config.icon}
               size={20}

@@ -1,26 +1,28 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { get, ref } from 'firebase/database';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
-import { styles } from '@/features/dashboard/styles/index.styles';
+import { createDashboardStyles } from '@/features/dashboard/styles/index.styles';
 
 import { TopBar } from '@/components/navigation/top-bar';
+import { useAppTheme } from '@/context/theme';
 import { dashboardMockData } from '@/features/dashboard/mock-data';
-import { rtdb } from '@/features/firebase/client';
+import { loadExamplePackageNode } from '@/features/firebase/load-package-node';
+import type { HardwarePackageNode } from '@/features/firebase/hardware-payload';
 import type { DashboardPackage, DashboardStat } from '@/features/dashboard/types';
 
 export default function HomeScreen() {
-  // mock data now; swap to firebase provider later
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createDashboardStyles(colors), [colors]);
   const { heading, liveLink, stats, packages, alerts } = dashboardMockData;
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'checking' | 'connected' | 'failed'>('idle');
   const [connectionMessage, setConnectionMessage] = useState<string>('Tap to test Firebase.');
-  const [latestPayload, setLatestPayload] = useState<unknown>(null);
+  const [packagePayload, setPackagePayload] = useState<HardwarePackageNode | null>(null);
 
   const statColor = (stat: DashboardStat) => {
-    if (stat.kind === 'status') return '#0F172A';
-    if (stat.tone === 'warning') return '#F59E0B';
-    return '#2563EB';
+    if (stat.kind === 'status') return colors.textPrimary;
+    if (stat.tone === 'warning') return colors.warning;
+    return colors.primary;
   };
 
   const packageTone = (status: DashboardPackage['status']) => {
@@ -36,36 +38,31 @@ export default function HomeScreen() {
   };
 
   const alertColor = (level: 'critical' | 'warning') => {
-    if (level === 'critical') return '#DC2626';
-    return '#F59E0B';
+    if (level === 'critical') return colors.danger;
+    return colors.warning;
   };
 
   const scoreToPercent = (score: string) => {
     const raw = Number.parseFloat(score);
-    // score is expected in 0.00-1.00 range
     return Math.max(0, Math.min(raw * 100, 100));
   };
 
   const runFirebaseTest = useCallback(async () => {
-    try {
-      setConnectionStatus('checking');
-      const snapshot = await get(ref(rtdb, 'demo/latest'));
-
-      if (!snapshot.exists()) {
-        setConnectionStatus('failed');
-        setConnectionMessage("Connected, but 'demo/latest' has no data.");
-        setLatestPayload(null);
-        return;
-      }
-
-      setConnectionStatus('connected');
-      setConnectionMessage('Connected to Realtime Database.');
-      setLatestPayload(snapshot.val());
-    } catch (error) {
+    setConnectionStatus('checking');
+    const result = await loadExamplePackageNode();
+    if (!result.ok) {
       setConnectionStatus('failed');
-      setConnectionMessage(error instanceof Error ? error.message : 'Unknown Firebase error.');
-      setLatestPayload(null);
+      setConnectionMessage(result.message);
+      setPackagePayload(null);
+      return;
     }
+    setConnectionStatus('connected');
+    setConnectionMessage(
+      result.source === 'fixture'
+        ? 'fixture mode (bundled schema json, no rtdb).'
+        : 'connected to rtdb.',
+    );
+    setPackagePayload(result.data);
   }, []);
 
   useEffect(() => {
@@ -92,8 +89,8 @@ export default function HomeScreen() {
           <Pressable onPress={runFirebaseTest} style={styles.testButton}>
             <Text style={styles.testButtonText}>Run Test</Text>
           </Pressable>
-          {latestPayload ? (
-            <Text style={styles.payloadText}>{JSON.stringify(latestPayload, null, 2)}</Text>
+          {packagePayload ? (
+            <Text style={styles.payloadText}>{JSON.stringify(packagePayload, null, 2)}</Text>
           ) : null}
         </View>
 
@@ -114,7 +111,7 @@ export default function HomeScreen() {
               <View style={styles.statValueRow}>
                 <Text style={[styles.statValue, { color: statColor(stat) }]}>{stat.value}</Text>
                 {stat.kind === 'status' ? (
-                  <MaterialCommunityIcons name="shield-check" size={22} color="#10B981" />
+                  <MaterialCommunityIcons name="shield-check" size={22} color={colors.success} />
                 ) : null}
               </View>
               {stat.sub ? <Text style={styles.statSub}>{stat.sub}</Text> : null}
@@ -140,12 +137,11 @@ export default function HomeScreen() {
               </View>
               <View style={styles.packageMeta}>
                 <View style={styles.locationRow}>
-                  <MaterialCommunityIcons name="map-marker-outline" size={14} color="#64748B" />
+                  <MaterialCommunityIcons name="map-marker-outline" size={14} color={colors.textMuted} />
                   <Text style={styles.locationText}>{pkg.location}</Text>
                 </View>
                 <View style={styles.progressTrack}>
                   <View
-                    // clamp defends against bad mock/source values
                     style={[
                       styles.progressFill,
                       {
@@ -161,7 +157,7 @@ export default function HomeScreen() {
                 <Text style={[styles.statusPill, { color: packageTone(pkg.status), backgroundColor: `${packageTone(pkg.status)}20` }]}>
                   {packageStatusLabel(pkg.status)}
                 </Text>
-                <MaterialCommunityIcons name="chevron-right" size={20} color="#64748B" />
+                <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textMuted} />
               </View>
             </View>
           ))}
@@ -169,7 +165,7 @@ export default function HomeScreen() {
 
         <View style={styles.alertCard}>
           <View style={styles.alertHeader}>
-            <MaterialCommunityIcons name="alert-outline" size={18} color="#DC2626" />
+            <MaterialCommunityIcons name="alert-outline" size={18} color={colors.danger} />
             <Text style={styles.alertTitle}>Actionable Alerts</Text>
           </View>
           {alerts.map((alert) => (
