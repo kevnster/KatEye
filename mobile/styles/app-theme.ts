@@ -16,6 +16,11 @@ export type ThemeColors = {
   navActive: string;
   iconMuted: string;
   topBarIconBg: string;
+  // bottom tab dock (reference-style bar)
+  tabDockBg: string;
+  tabDockBorder: string;
+  tabAccent: string;
+  tabInactive: string;
 };
 
 // default light
@@ -35,6 +40,10 @@ export const lightColors: ThemeColors = {
   navActive: '#E5E7EB',
   iconMuted: '#6B7280',
   topBarIconBg: '#F3F4F6',
+  tabDockBg: 'rgba(255,255,255,0.94)',
+  tabDockBorder: 'rgba(148,163,184,0.4)',
+  tabAccent: '#2563EB',
+  tabInactive: 'rgba(71,85,105,0.55)',
 };
 
 export const darkColors: ThemeColors = {
@@ -53,6 +62,10 @@ export const darkColors: ThemeColors = {
   navActive: '#334155',
   iconMuted: '#9CA3AF',
   topBarIconBg: '#334155',
+  tabDockBg: 'rgba(18,20,22,0.92)',
+  tabDockBorder: 'rgba(162,201,255,0.16)',
+  tabAccent: '#a2c9ff',
+  tabInactive: 'rgba(226,226,229,0.55)',
 };
 
 export const themeBase = {

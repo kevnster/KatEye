@@ -13,25 +13,25 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Dashboard',
+          title: 'Stats',
         }}
       />
       <Tabs.Screen
-        name="tracking"
+        name="digital-twin"
         options={{
-          title: 'Tracking',
+          title: 'Digital Twin',
         }}
       />
       <Tabs.Screen
-        name="keys"
+        name="map"
         options={{
-          title: 'Keys',
+          title: 'Map',
         }}
       />
       <Tabs.Screen
         name="reports"
         options={{
-          title: 'Reports',
+          title: 'Config',
         }}
       />
     </Tabs>
