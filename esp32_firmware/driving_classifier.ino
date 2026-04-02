@@ -1,184 +1,157 @@
-// ESP32 + MPU6050
-// Runs INT8-quantized 1D CNN via TensorFlow Lite for Microcontrollers
-// Data:  
-//     - 112 timesteps x 6 channels @ 56 Hz (2-second window)
-//     - {accx, accy, accz, gyrox, gyroy, gyroz}
-// Output: 9 driving event classes
-
-// https://github.com/tanakamasayuki/Arduino_TensorFlowLite_ESP32
-#include <TensorFlowLite_ESP32.h>
-#include "tensorflow/lite/micro/all_ops_resolver.h"
+#include <Arduino.h>
+#include "tensorflow/lite/micro/micro_mutable_op_resolver.h"
 #include "tensorflow/lite/micro/micro_interpreter.h"
+#include "tensorflow/lite/micro/system_setup.h"
 #include "tensorflow/lite/schema/schema_generated.h"
 
+// Include your auto-generated model header
 #include "driving_cnn_model.h"
-#include "preprocessing.h"
-#include "imu_sensor.h"
 
-static const int WINDOW_SIZE    = 112;
-static const int HOP_SIZE       = 56;
-static const int N_CHANNELS     = 6;
-static const int N_CLASSES      = 9;
-static const int SAMPLE_INTERVAL_US = 17857;  // 1/56 Hz in microseconds
+// Globals
+namespace {
+  const tflite::Model* model = nullptr;
+  tflite::MicroInterpreter* interpreter = nullptr;
+  TfLiteTensor* input = nullptr;
+  TfLiteTensor* output = nullptr;
 
-static const char* CLASS_NAMES[N_CLASSES] = {
-    "Accelerate",
-    "Aggressive Accelerate",
-    "Aggressive Brake",
-    "Aggressive Left",
-    "Aggressive Right",
-    "Brake",
-    "Idling",
-    "Left",
-    "Right"
-};
+  constexpr int kTensorArenaSize = 64 * 1024;
+  
+  // Define as a pointer instead of a static array
+  uint8_t* tensor_arena = nullptr; 
 
-// Tensor arena — start at 64 KB, tune with arena_used_bytes()        
-static const int ARENA_SIZE = 64 * 1024;
-static uint8_t tensor_arena[ARENA_SIZE] __attribute__((aligned(16)));
-
-// Globals                                                             
-static const tflite::Model*       model       = nullptr;
-static tflite::MicroInterpreter*  interpreter = nullptr;
-static TfLiteTensor*              input_tensor  = nullptr;
-static TfLiteTensor*              output_tensor = nullptr;
-
-static IMUSensor imu;
-
-// Circular buffer for raw sensor readings
-static float sensor_buf[WINDOW_SIZE][N_CHANNELS];
-static int   write_idx     = 0;
-static int   sample_count  = 0;
-
-static unsigned long last_sample_us = 0;
-
-// setup()                                                             //
-void setup() {
-    Serial.begin(115200);
-    while (!Serial) { delay(10); }
-    Serial.println("\n=== Driving Behavior Classifier ===");
-
-    // --- IMU ---
-    Wire.begin();
-    if (!imu.begin()) {
-        Serial.println("FATAL: IMU init failed — halting");
-        while (true) { delay(1000); }
-    }
-
-    // --- Load TFLite model ---
-    model = tflite::GetModel(driving_cnn_model);
-    if (model->version() != TFLITE_SCHEMA_VERSION) {
-        Serial.printf("ERROR: Model schema v%d != expected v%d\n",
-                       model->version(), TFLITE_SCHEMA_VERSION);
-        while (true) { delay(1000); }
-    }
-    Serial.println("Model loaded OK");
-
-    static tflite::MicroMutableOpResolver<7> resolver;
-    resolver.AddConv2D();           // Conv1D is lowered to Conv2D internally
-    resolver.AddMaxPool2D();
-    resolver.AddFullyConnected();
-    resolver.AddSoftmax();
-    resolver.AddReshape();
-    resolver.AddQuantize();
-    resolver.AddDequantize();
-
-    // --- Interpreter ---
-
-    tflite::MicroInterpreter static_interpreter(
-        model, resolver, tensor_arena, ARENA_SIZE, nullptr, nullptr);
-    interpreter = &static_interpreter;
-
-    if (interpreter->AllocateTensors() != kTfLiteOk) {
-        Serial.println("FATAL: AllocateTensors() failed — arena too small?");
-        while (true) { delay(1000); }
-    }
-
-    input_tensor  = interpreter->input(0);
-    output_tensor = interpreter->output(0);
-
-    // --- Verify tensor shapes ---
-    Serial.printf("Input  : shape [%d, %d, %d], type %s\n",
-        input_tensor->dims->data[0],
-        input_tensor->dims->data[1],
-        input_tensor->dims->data[2],
-        TfLiteTypeGetName(input_tensor->type));
-    Serial.printf("Output : shape [%d, %d], type %s\n",
-        output_tensor->dims->data[0],
-        output_tensor->dims->data[1],
-        TfLiteTypeGetName(output_tensor->type));
-
-    if (input_tensor->type != kTfLiteInt8) {
-        Serial.println("ERROR: Expected INT8 input tensor");
-        while (true) { delay(1000); }
-    }
-
-    Serial.printf("Arena used: %zu / %d bytes\n",
-        interpreter->arena_used_bytes(), ARENA_SIZE);
-    Serial.println("Ready — collecting samples...\n");
-
-    last_sample_us = micros();
+  const char* const CLASS_NAMES[] = {
+    "Accelerate", "Aggressive Accelerate", "Aggressive Brake", 
+    "Aggressive Left", "Aggressive Right", "Brake", 
+    "Idling", "Left", "Right"
+  };
 }
 
-// loop() — 56 Hz sampling + sliding-window inference                
+void setup() {
+  Serial.begin(115200);
+  while(!Serial); 
+  Serial.println("Initializing Driving CNN Model...");
+
+  // Dynamically allocate the memory in the external PSRAM chip
+  tensor_arena = (uint8_t*)ps_malloc(kTensorArenaSize);
+  if (tensor_arena == nullptr) {
+    Serial.println("PSRAM allocation failed! Did you enable PSRAM in Tools?");
+    while(1); // Trap the error here so it doesn't crash the loop
+  }
+  Serial.println("PSRAM allocation successful.");
+
+  // 1. Map the model
+  Serial.println("PSRAM allocation successful.");
+  Serial.flush(); // Force the print to finish
+
+  Serial.println("Attempting to map model...");
+  Serial.flush();
+  model = tflite::GetModel(driving_cnn_model); 
+
+  Serial.println("Mapped Model successful.");
+  Serial.flush();
+
+  if (model->version() != TFLITE_SCHEMA_VERSION) {
+    Serial.printf("1. Model schema mismatch.\n");
+    while(1);
+  }
+
+  // 2. Setup the resolver
+  static tflite::MicroMutableOpResolver<12> resolver;
+  resolver.AddConv2D();
+  resolver.AddMaxPool2D();
+  resolver.AddAveragePool2D(); 
+  resolver.AddReshape();
+  resolver.AddFullyConnected();
+  resolver.AddRelu();
+  resolver.AddSoftmax();
+  resolver.AddExpandDims();
+  resolver.AddShape();
+  resolver.AddStridedSlice();
+  resolver.AddPack();
+  resolver.AddSqueeze();
+
+  Serial.println("2. Resolver setup successful.");
+
+  // 3. Build the interpreter
+  static tflite::MicroInterpreter static_interpreter(
+      model, resolver, tensor_arena, kTensorArenaSize);
+  interpreter = &static_interpreter;
+  Serial.println("3. Intepreter built successful.");
+
+  
+  // 4. Allocate memory
+  TfLiteStatus allocate_status = interpreter->AllocateTensors();
+  if (allocate_status != kTfLiteOk) {
+    Serial.println("AllocateTensors() failed!");
+    while(1); // Trap the error here so it doesn't crash the loop!
+  }
+  Serial.println("4. Allocated tensors to interpreter successful.");
+
+  // 5. Obtain pointers
+  input = interpreter->input(0);
+  output = interpreter->output(0);
+  
+  Serial.println("Model loaded successfully.");
+}
+
+
 void loop() {
-    unsigned long now_us = micros();
+  // --- SYNTHETIC DATA GENERATION ---
+  // The model expects shape (1, 112, 6) = 672 readings per window
+  
+  // Simulate a static IMU reading (e.g., idling with 1G on the Y-axis)
+  float raw_accel_x = 0.10;
+  float raw_accel_y = 9.81; 
+  float raw_accel_z = 0.00;
+  float raw_gyro_x  = 0.00;
+  float raw_gyro_y  = 0.00;
+  float raw_gyro_z  = 0.00;
 
-    if (now_us - last_sample_us < (unsigned long)SAMPLE_INTERVAL_US) return;
-    last_sample_us = now_us;   // Issue 3 fix: re-anchor each sample
+  // Fill the 112 window steps
+  // 1D array indexing formula: [timestep * 6 + channel]
+  for (int i = 0; i < 112; i++) {
+    
+    // Step 1: Z-score Normalization (Metrics derived from your header)
+    float norm_ax = (raw_accel_x - 0.090964) / 1.002758;
+    float norm_ay = (raw_accel_y - 9.766457) / 0.338983;
+    float norm_az = (raw_accel_z - 0.054432) / 1.213156;
+    float norm_gx = (raw_gyro_x - -0.000755) / 0.048697;
+    float norm_gy = (raw_gyro_y - -0.011453) / 0.263639;
+    float norm_gz = (raw_gyro_z - 0.000220) / 0.023590;
 
-    // --- Read and buffer IMU ---
-    IMUReading r = imu.read();
-    sensor_buf[write_idx][0] = r.accel_x;
-    sensor_buf[write_idx][1] = r.accel_y;
-    sensor_buf[write_idx][2] = r.accel_z;
-    sensor_buf[write_idx][3] = r.gyro_x;
-    sensor_buf[write_idx][4] = r.gyro_y;
-    sensor_buf[write_idx][5] = r.gyro_z;
-    write_idx = (write_idx + 1) % WINDOW_SIZE;
-    sample_count++;
+    // Step 2: Quantize to INT8 
+    // Formula: int8_val = (float_val / 0.044386) + 4
+    input->data.int8[i * 6 + 0] = (int8_t)((norm_ax / 0.044386) + 4);
+    input->data.int8[i * 6 + 1] = (int8_t)((norm_ay / 0.044386) + 4);
+    input->data.int8[i * 6 + 2] = (int8_t)((norm_az / 0.044386) + 4);
+    input->data.int8[i * 6 + 3] = (int8_t)((norm_gx / 0.044386) + 4);
+    input->data.int8[i * 6 + 4] = (int8_t)((norm_gy / 0.044386) + 4);
+    input->data.int8[i * 6 + 5] = (int8_t)((norm_gz / 0.044386) + 4);
+  }
 
-    if (sample_count < WINDOW_SIZE) return;
+  // --- INFERENCE EXECUTION ---
+  long start_time = millis();
+  if (interpreter->Invoke() != kTfLiteOk) {
+    Serial.println("Invoke failed!");
+    return;
+  }
+  long end_time = millis();
 
-    // --- Linearize circular buffer into input tensor ---
-    int8_t* input_data = input_tensor->data.int8;
-    for (int t = 0; t < WINDOW_SIZE; t++) {
-        int buf_idx = (write_idx + t) % WINDOW_SIZE;
-        for (int ch = 0; ch < N_CHANNELS; ch++) {
-            input_data[t * N_CHANNELS + ch] = preprocess(sensor_buf[buf_idx][ch], ch);
-        }
+  // The output is a 1x9 INT8 tensor. We find the index of the highest probability.
+  int8_t max_val = -128;
+  int max_index = 0;
+
+  for (int i = 0; i < 9; i++) {
+    int8_t current_val = output->data.int8[i];
+    if (current_val > max_val) {
+      max_val = current_val;
+      max_index = i;
     }
+  }
 
-    // --- Inference ---
-    unsigned long t0 = micros();
-    if (interpreter->Invoke() != kTfLiteOk) {
-        Serial.println("ERROR: Invoke() failed");
-        sample_count = WINDOW_SIZE - HOP_SIZE;
-        return;
-    }
-    unsigned long dt = micros() - t0;
+  // Print results
+  Serial.printf("Predicted Event: %s (Class %d) | Inference Time: %ld ms\n", 
+                CLASS_NAMES[max_index], max_index, (end_time - start_time));
 
-    // --- Argmax ---
-    int8_t* output_data = output_tensor->data.int8;
-    int    best_idx = 0;
-    int8_t best_val = output_data[0];
-    for (int i = 1; i < N_CLASSES; i++) {
-        if (output_data[i] > best_val) {
-            best_val = output_data[i];
-            best_idx = i;
-        }
-    }
-
-    // Confidence Level
-    static const int8_t CONFIDENCE_THRESHOLD = -50;
-    if (best_val < CONFIDENCE_THRESHOLD) {
-        Serial.printf("[%6lu ms] LOW CONFIDENCE (best=%d) — skipping\n",
-            millis(), best_val);
-    } else {
-        Serial.printf("[%6lu ms] %-25s  score=%d  inference=%lu us\n",
-            millis(), CLASS_NAMES[best_idx], best_val, dt);
-    }
-
-    // --- Slide window ---
-    sample_count = WINDOW_SIZE - HOP_SIZE;
+  delay(2000); // Run an inference every 2 seconds
 }
