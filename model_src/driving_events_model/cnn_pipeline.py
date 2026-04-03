@@ -1,11 +1,7 @@
 """
-Driving Behavior Classifier — Goh Dataset
 
-Architecture
-- 1D Convolutional Neural Network
-- reference SKILL.md
 
-Input: Smartphone IMU raw data (ACCEL_X, ACCEL_Y, ACCEL_Z, GYRO_X, GYRO_Y, GYRO_Z) @ ~56 Hz
+Input:  IMU raw data (ACCEL_X, ACCEL_Y, ACCEL_Z, GYRO_X, GYRO_Y, GYRO_Z) @ ~56 Hz
 
 Output:  9-class classification
 
@@ -103,9 +99,7 @@ def run_pipeline():
         verbose              = True,
     )
 
-    # -------------------------------------------------------------- #
     # 2. Sliding window extraction                                    #
-    # -------------------------------------------------------------- #
     print("\n" + "=" * 60)
     print("2 — Sliding window extraction")
     print("=" * 60)
@@ -118,9 +112,6 @@ def run_pipeline():
         class_names = CLASS_NAMES,
     )
 
-    # -------------------------------------------------------------- #
-    # 3. Train / val / test split                                     #
-    # -------------------------------------------------------------- #
     print("\n" + "=" * 60)
     print("3 — Train/test split (stratified by class, grouped by session)")
     print("=" * 60)
@@ -135,9 +126,7 @@ def run_pipeline():
         seed        = SEED,
     )
 
-    # -------------------------------------------------------------- #
-    # 4. Normalisation                                                #
-    # -------------------------------------------------------------- #
+
     print("\n" + "=" * 60)
     print("4 — Normalisation")
     print("=" * 60)
@@ -152,9 +141,7 @@ def run_pipeline():
     train_mean = scaler.mean_
     train_std  = scaler.scale_
 
-    # -------------------------------------------------------------- #
-    # 5. tf.data pipeline with on-the-fly augmentation               #
-    # -------------------------------------------------------------- #
+
     print("\n" + "=" * 60)
     print("5 — Building tf.data pipeline with on-the-fly augmentation")
     print("=" * 60)
@@ -171,9 +158,6 @@ def run_pipeline():
         seed         = SEED,
     )
 
-    # -------------------------------------------------------------- #
-    # 6. Class weights                                                #
-    # -------------------------------------------------------------- #
     print("\n" + "=" * 60)
     print("6 — Computing class weights for imbalanced data")
     print("=" * 60)
@@ -183,9 +167,6 @@ def run_pipeline():
         n_classes = N_CLASSES,
     )
 
-    # -------------------------------------------------------------- #
-    # 7. Build model                                                  #
-    # -------------------------------------------------------------- #
     print("\n" + "=" * 60)
     print("7 — Building 1D CNN model (ESP32-S3 optimised)")
     print("=" * 60)
@@ -198,9 +179,7 @@ def run_pipeline():
         dropout_rate  = 0.4,
     )
 
-    # -------------------------------------------------------------- #
     # 8. Training                                                     #
-    # -------------------------------------------------------------- #
     print("\n" + "=" * 60)
     print("8 — Training with early stopping")
     print("=" * 60)
@@ -214,9 +193,7 @@ def run_pipeline():
         patience          = PATIENCE,
     )
 
-    # -------------------------------------------------------------- #
     # 9. Evaluation                                                   #
-    # -------------------------------------------------------------- #
     print("\n" + "=" * 60)
     print("9 — Evaluation on test set")
     print("=" * 60)
@@ -229,9 +206,6 @@ def run_pipeline():
         class_names = CLASS_NAMES,
     )
 
-    # -------------------------------------------------------------- #
-    # 10. Visualisations                                              #
-    # -------------------------------------------------------------- #
     print("\n" + "=" * 60)
     print("10 — Generating visualisations")
     print("=" * 60)
@@ -244,9 +218,7 @@ def run_pipeline():
         output_dir = OUTPUT_DIR,
     )
 
-    # -------------------------------------------------------------- #
     # 11. Save Keras model                                            #
-    # -------------------------------------------------------------- #
     print("\n" + "=" * 60)
     print("11 — Saving Keras model")
     print("=" * 60)
@@ -257,9 +229,7 @@ def run_pipeline():
         filename   = "driving_cnn.keras",
     )
 
-    # -------------------------------------------------------------- #
     # 12. TFLite conversion (float32 + INT8)                         #
-    # -------------------------------------------------------------- #
     print("\n" + "=" * 60)
     print("12 — Converting to TFLite (INT8 quantised)")
     print("=" * 60)
@@ -270,9 +240,7 @@ def run_pipeline():
         output_dir = OUTPUT_DIR,
     )
 
-    # -------------------------------------------------------------- #
     # 13. Verify TFLite accuracy                                      #
-    # -------------------------------------------------------------- #
     print("\n" + "=" * 60)
     print("13 — Verifying TFLite INT8 accuracy")
     print("=" * 60)
@@ -284,9 +252,7 @@ def run_pipeline():
         keras_test_acc = test_acc,
     )
 
-    # -------------------------------------------------------------- #
     # 14. Export C header for ESP32-S3 firmware                      #
-    # -------------------------------------------------------------- #
     print("\n" + "=" * 60)
     print("14 — Generating C header for ESP32-S3 firmware")
     print("=" * 60)
@@ -305,9 +271,7 @@ def run_pipeline():
         train_std   = train_std,
     )
 
-    # -------------------------------------------------------------- #
-    # Pipeline complete                                               #
-    # -------------------------------------------------------------- #
+
     print("\n" + "=" * 60)
     print("Pipeline complete")
     print("=" * 60)
