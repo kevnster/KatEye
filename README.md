@@ -1,50 +1,82 @@
-# Welcome to your Expo app 👋
+# KatEye
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Andy Tran (hardware)  
+Kevin Nguyen (client)  
+Tyler Le (AI/ML)
 
-## Get started
+KatEye is the **mobile client** for fleet and in-transit package telemetry: a supervisor-style view of devices, recent driving events, and per-unit detail (including IMU context when the backend stores it). It is built with **Expo** and **React Native**. **Firebase Realtime Database** holds **`alerts`** rows that the app subscribes to in real time, plus optional static JSON for local demos. Screens include fleet overview, digital twin, a map centered on the handset’s location, and a **Config** tab for connection diagnostics.
 
-1. Install dependencies
+## Stack (at a glance)
 
-   ```bash
-   npm install
-   ```
+- **Expo 54** + **Expo Router** (file-based routes under `mobile/app/`)
+- **React Native** UI, **react-native-maps** + **expo-location** on the map screen
+- **Firebase** JS SDK → **Realtime Database** (`alerts` path), wired in `mobile/features/firebase/`
 
-2. Start the app
+## How data reaches the app
 
-   ```bash
-   npx expo start
-   ```
+Gateways or backends write alert documents under **`alerts/<eventId>`** in RTDB (device id, event type, timestamp, optional IMU `snapshot` object). The app opens one **`onValue`** listener on **`alerts`**, normalizes rows in code, and feeds the overview dashboard and per-device digital twin screens. Nothing in this repo pushes to Firebase; it only reads (and merges env config at build time).
 
-In the output, you'll find options to open the app in a
+## Directory map
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```text
+KatEye/
+├── .env.example          # template for EXPO_PUBLIC_* (copy to .env at repo root)
+├── firebase-rtdb-alerts.fixture.json
+├── mobile/
+│   ├── app/              # Expo Router screens (tabs: overview, digital-twin, map, reports)
+│   ├── components/       # shared UI (e.g. top/bottom navigation)
+│   ├── context/          # theme, alert events subscription
+│   ├── features/
+│   │   ├── dashboard/    # fleet overview, charts, package cards
+│   │   ├── digital-twin/ # device detail + telemetry list
+│   │   └── firebase/     # RTDB client, parsing, optional fixture load
+│   ├── styles/           # theme tokens and shared styles
+│   └── assets/
+└── hardware/             # placeholder for firmware / edge notes (currently empty)
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## System architecture
 
-## Learn more
+`<screenshot of system architecture>`
 
-To learn more about developing your project with Expo, look at the following resources:
+## ML model
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+The edge stack uses a small 1D CNN on gyro + accelerometer windows to classify driving events on-device (ESP32-S3), instead of shipping raw streams to the cloud. When firmware or a gateway emits a detection, that event is what ends up as **`event_type`** (and often **`snapshot`** IMU series) under **`alerts`** in RTDB—same six-channel shape the model was trained on—which KatEye then lists on the dashboard and in the digital twin. Details, training pipeline, and export artifacts live in **[tylerrleee/driving-classifier](https://github.com/tylerrleee/driving-classifier)** (driving behavior classifier from IMU data, INT8 TFLite for embedded use).
 
-## Join the community
+## Requirements
 
-Join our community of developers creating universal apps.
+- macOS with **Xcode** (iOS Simulator) or an **iPhone** with [Expo Go](https://expo.dev/go)
+- **Node.js** 20+ and npm
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## Environment
+
+Copy `.env.example` to `.env` in the **repo root** (same level as `mobile/`). Fill in the `EXPO_PUBLIC_*` keys from your Firebase project (Project settings – your apps / SDK snippet). Those names must stay prefixed with `EXPO_PUBLIC_` so Metro can embed them in the client build. Do not commit `.env`; it should stay gitignored.
+
+## Run (iOS)
+
+From the repo root:
+
+```bash
+cd mobile
+npm install
+npx expo start
+```
+
+Press `i` for the iOS Simulator, or use Expo Go on a device. With the dev server running, press `r` in that terminal to reload the app; Fast Refresh usually picks up saves on its own. Ensure `.env` exists at the repo root before running (see **Environment**).
+
+## Roadmap (gantt)
+
+`<screenshot of gantt chart>`
+
+## Troubleshooting
+
+- **Expo Go cannot load the bundle**: Phone and computer must be on the same LAN, or run Expo with **tunnel** so traffic does not rely on local network discovery. Corporate or guest Wi‑Fi often blocks device-to-laptop ports.
+- **Env vars missing in the app**: `mobile` scripts load `.env` from the **parent** directory; the file must live next to `mobile/`, not inside `mobile/`. Restart Metro after editing `.env`.
+- **Stale JS after upgrades**: `npx expo start --clear` (or delete `.expo` / Metro cache) before assuming a dependency change failed.
+- **RTDB empty or permission errors**: Confirm `EXPO_PUBLIC_FIREBASE_DATABASE_URL` and security rules allow the client to **read** `alerts` for your test identity. In the app, open the **Config** tab (bottom navigation), use the **Data connection** card, and tap refresh: it re-runs the Firebase read and surfaces the same status string you would infer from logs (fixture vs live, count, or error message) without digging into Metro.
+
+## Screenshots
+
+## License
+
+See `LICENSE`.
