@@ -48,18 +48,5 @@ export function createTopBarStyles(c: ThemeColors) {
       borderRadius: 4,
       backgroundColor: '#EF4444',
     },
-    avatar: {
-      width: 34,
-      height: 34,
-      borderRadius: 17,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: c.primary,
-    },
-    avatarText: {
-      fontSize: 12,
-      fontWeight: '700',
-      color: '#FFFFFF',
-    },
   });
 }

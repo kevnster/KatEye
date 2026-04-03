@@ -3,6 +3,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 
+import { AlertsEventsProvider } from '@/context/alerts-events';
 import { AppThemeProvider, useAppTheme } from '@/context/theme';
 import { AppNavigationDark, AppNavigationLight } from '@/styles/navigation-theme';
 
@@ -13,7 +14,9 @@ export const unstable_settings = {
 export default function RootLayout() {
   return (
     <AppThemeProvider>
-      <RootNav />
+      <AlertsEventsProvider>
+        <RootNav />
+      </AlertsEventsProvider>
     </AppThemeProvider>
   );
 }

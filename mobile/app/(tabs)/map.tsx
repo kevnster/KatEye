@@ -1,33 +1,34 @@
 import { useMemo } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import MapView from 'react-native-maps';
 
 import { TopBar } from '@/components/navigation/top-bar';
 import { useAppTheme } from '@/context/theme';
-import { kateyeMapStyle } from '@/features/map/kateye-map-style';
-import { MapMarkerPin } from '@/features/map/map-marker-pin';
 
-/** placeholder focus — mediterranean / n africa, tweak anytime */
-const PLACEHOLDER_CENTER = { latitude: 28, longitude: 12 };
+const INITIAL = {
+  latitude: 29.6516,
+  longitude: -82.3248,
+  latitudeDelta: 0.12,
+  longitudeDelta: 0.12,
+};
 
 export default function MapScreen() {
   const { colors, scheme } = useAppTheme();
-
-  const initialRegion = useMemo(
-    () => ({
-      ...PLACEHOLDER_CENTER,
-      latitudeDelta: 65,
-      longitudeDelta: 65,
-    }),
-    [],
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        root: { flex: 1, backgroundColor: colors.pageBg },
+        map: { flex: 1 },
+      }),
+    [colors.pageBg],
   );
 
   return (
-    <View style={[styles.root, { backgroundColor: colors.pageBg }]}>
+    <View style={styles.root}>
       <TopBar />
       <MapView
         style={styles.map}
-        initialRegion={initialRegion}
+        initialRegion={INITIAL}
         rotateEnabled
         pitchEnabled
         scrollEnabled
@@ -40,20 +41,7 @@ export default function MapScreen() {
         toolbarEnabled={false}
         mapType={Platform.OS === 'ios' ? 'mutedStandard' : 'standard'}
         userInterfaceStyle={scheme === 'dark' ? 'dark' : 'light'}
-        customMapStyle={Platform.OS === 'android' ? kateyeMapStyle : undefined}>
-        <Marker coordinate={PLACEHOLDER_CENTER} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false}>
-          <MapMarkerPin accent={colors.tabAccent} rim={scheme === 'dark' ? colors.pageBg : colors.surface} />
-        </Marker>
-      </MapView>
+      />
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-  },
-  map: {
-    flex: 1,
-  },
-});

@@ -14,7 +14,7 @@ const TAB_CONFIG: Record<
   string,
   { label: string; icon: ComponentProps<typeof MaterialCommunityIcons>['name'] }
 > = {
-  index: { label: 'Stats', icon: 'view-dashboard' },
+  index: { label: 'Overview', icon: 'view-dashboard' },
   'digital-twin': { label: 'Digital Twin', icon: 'cube-scan' },
   map: { label: 'Map', icon: 'map-outline' },
   reports: { label: 'Config', icon: 'cog' },

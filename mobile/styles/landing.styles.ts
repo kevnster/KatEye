@@ -78,7 +78,7 @@ export function createLandingStyles(c: ThemeColors) {
       gap: 8,
     },
     primaryButtonText: {
-      color: '#FFFFFF',
+      color: c.onPrimary,
       fontWeight: '700',
       fontSize: 14,
     },

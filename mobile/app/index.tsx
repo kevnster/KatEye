@@ -31,7 +31,7 @@ export default function LandingScreen() {
           <Text style={styles.cardSubtitle}>Access your logistics dashboard.</Text>
 
           <Pressable style={styles.primaryButton} onPress={() => router.replace('/(tabs)')}>
-            <MaterialCommunityIcons name="email-outline" size={18} color="#FFFFFF" />
+            <MaterialCommunityIcons name="email-outline" size={18} color={colors.onPrimary} />
             <Text style={styles.primaryButtonText}>Sign in with Email</Text>
           </Pressable>
 

@@ -1,5 +1,3 @@
-// shared tokens — createXStyles(c) wired from context
-
 export type ThemeColors = {
   pageBg: string;
   surface: string;
@@ -8,6 +6,7 @@ export type ThemeColors = {
   textSecondary: string;
   textMuted: string;
   primary: string;
+  onPrimary: string;
   success: string;
   warning: string;
   danger: string;
@@ -16,56 +15,56 @@ export type ThemeColors = {
   navActive: string;
   iconMuted: string;
   topBarIconBg: string;
-  // bottom tab dock (reference-style bar)
   tabDockBg: string;
   tabDockBorder: string;
   tabAccent: string;
   tabInactive: string;
 };
 
-// default light
 export const lightColors: ThemeColors = {
-  pageBg: '#F8FAFC',
-  surface: '#FFFFFF',
-  border: '#E2E8F0',
-  textPrimary: '#0F172A',
-  textSecondary: '#475569',
-  textMuted: '#64748B',
-  primary: '#2563EB',
-  success: '#16A34A',
-  warning: '#F59E0B',
-  danger: '#DC2626',
-  liveDot: '#10B981',
-  alertBorder: '#FECACA',
-  navActive: '#E5E7EB',
-  iconMuted: '#6B7280',
-  topBarIconBg: '#F3F4F6',
-  tabDockBg: 'rgba(255,255,255,0.94)',
-  tabDockBorder: 'rgba(148,163,184,0.4)',
-  tabAccent: '#2563EB',
-  tabInactive: 'rgba(71,85,105,0.55)',
+  pageBg: '#f5f2eb',
+  surface: '#fffefb',
+  border: '#e2dbd0',
+  textPrimary: '#152226',
+  textSecondary: '#3d524e',
+  textMuted: '#6e807b',
+  primary: '#9a7a3d',
+  onPrimary: '#152226',
+  success: '#3d6b5c',
+  warning: '#c9a24a',
+  danger: '#b45348',
+  liveDot: '#c5a059',
+  alertBorder: '#e8d4cf',
+  navActive: '#e8e3d9',
+  iconMuted: '#5c6e6a',
+  topBarIconBg: '#ebe6dc',
+  tabDockBg: '#fffefb',
+  tabDockBorder: '#e2dbd0',
+  tabAccent: '#9a7a3d',
+  tabInactive: 'rgba(21,34,38,0.42)',
 };
 
 export const darkColors: ThemeColors = {
-  pageBg: '#0F172A',
-  surface: '#1E293B',
-  border: '#334155',
-  textPrimary: '#F8FAFC',
-  textSecondary: '#CBD5E1',
-  textMuted: '#94A3B8',
-  primary: '#60A5FA',
-  success: '#22C55E',
-  warning: '#FBBF24',
-  danger: '#F87171',
-  liveDot: '#34D399',
-  alertBorder: '#7F1D1D',
-  navActive: '#334155',
-  iconMuted: '#9CA3AF',
-  topBarIconBg: '#334155',
-  tabDockBg: 'rgba(18,20,22,0.92)',
-  tabDockBorder: 'rgba(162,201,255,0.16)',
-  tabAccent: '#a2c9ff',
-  tabInactive: 'rgba(226,226,229,0.55)',
+  pageBg: '#152226',
+  surface: '#1a2e32',
+  border: '#2a4046',
+  textPrimary: '#f2efe8',
+  textSecondary: '#bfc9c6',
+  textMuted: '#7d908a',
+  primary: '#c5a059',
+  onPrimary: '#152226',
+  success: '#7cb69d',
+  warning: '#f0d080',
+  danger: '#d4847a',
+  liveDot: '#f0d080',
+  alertBorder: '#4a3530',
+  navActive: '#243a40',
+  iconMuted: '#8a9d98',
+  topBarIconBg: '#1e3338',
+  tabDockBg: '#131e22',
+  tabDockBorder: '#2a4046',
+  tabAccent: '#c5a059',
+  tabInactive: 'rgba(197,160,89,0.42)',
 };
 
 export const themeBase = {

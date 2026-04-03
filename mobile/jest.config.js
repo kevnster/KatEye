@@ -5,6 +5,5 @@ module.exports = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
   },
-  // avoid watchman in ci / sandboxes where it's broken
   watchman: false,
 };

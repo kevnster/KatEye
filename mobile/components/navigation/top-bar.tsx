@@ -29,9 +29,6 @@ export function TopBar() {
           <MaterialCommunityIcons name="bell-outline" size={20} color={colors.iconMuted} />
           <View style={styles.notificationDot} />
         </Pressable>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>OP</Text>
-        </View>
       </View>
     </View>
   );

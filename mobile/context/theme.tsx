@@ -13,7 +13,6 @@ type ThemeContextValue = {
   setPref: (p: ThemePreference) => void;
   scheme: 'light' | 'dark';
   colors: ThemeColors;
-  // tap sun/moon — pin to opposite of whatever youre seeing (overrides system)
   toggleLightDark: () => void;
 };
 

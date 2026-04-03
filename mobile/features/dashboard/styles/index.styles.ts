@@ -11,17 +11,17 @@ export function createDashboardStyles(c: ThemeColors) {
     },
     content: {
       paddingHorizontal: t.spacing.xl,
-      paddingTop: 16,
+      paddingTop: 10,
       paddingBottom: t.spacing.pageBottomInset,
-      gap: t.spacing.lg,
+      gap: 10,
     },
     testCard: {
       backgroundColor: c.surface,
-      borderRadius: t.radius.lg,
+      borderRadius: t.radius.md,
       borderWidth: 1,
       borderColor: c.border,
-      padding: t.spacing.md,
-      gap: t.spacing.sm,
+      padding: t.spacing.sm,
+      gap: 6,
     },
     testHeader: {
       flexDirection: 'row',
@@ -60,48 +60,15 @@ export function createDashboardStyles(c: ThemeColors) {
       fontSize: 12,
       fontWeight: '700',
     },
-    payloadText: {
-      marginTop: t.spacing.xs,
-      fontSize: 11,
-      color: c.textPrimary,
-      backgroundColor: c.pageBg,
-      borderRadius: t.radius.sm,
-      padding: t.spacing.sm,
-      fontFamily: 'monospace',
-    },
     heroRow: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
       alignItems: 'flex-end',
-      gap: 12,
     },
     heading: {
       marginTop: 2,
-      fontSize: t.fontSize.hero,
+      fontSize: t.fontSize.heading,
       fontWeight: '800',
       color: c.textPrimary,
-    },
-    livePill: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      paddingHorizontal: t.fontSize.md,
-      paddingVertical: 6,
-      borderRadius: t.radius.md,
-      backgroundColor: c.border,
-    },
-    liveDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-      backgroundColor: c.liveDot,
-    },
-    liveText: {
-      fontSize: 9,
-      textTransform: 'uppercase',
-      letterSpacing: 0.6,
-      color: c.textSecondary,
-      fontWeight: '600',
     },
     statsGrid: {
       flexDirection: 'row',
@@ -116,8 +83,8 @@ export function createDashboardStyles(c: ThemeColors) {
       borderRadius: t.radius.lg,
       borderWidth: 1,
       borderColor: c.border,
-      paddingHorizontal: t.spacing.md,
-      paddingVertical: 10,
+      paddingHorizontal: t.spacing.sm,
+      paddingVertical: 8,
     },
     statLabel: {
       fontSize: 9,
@@ -131,15 +98,143 @@ export function createDashboardStyles(c: ThemeColors) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 6,
+      minWidth: 0,
+      width: '100%',
     },
     statValue: {
+      flex: 1,
+      minWidth: 0,
       fontSize: 18,
       fontWeight: '900',
+      fontVariant: ['tabular-nums'],
     },
-    statSub: {
-      marginTop: 3,
+    overviewColumn: {
+      flex: 1,
+      paddingHorizontal: t.spacing.xl,
+      paddingTop: 6,
+      paddingBottom: t.spacing.pageBottomInset,
+      gap: 8,
+      minHeight: 0,
+    },
+    deviceScroll: {
+      flex: 1,
+      minHeight: 100,
+    },
+    deviceScrollContent: {
+      gap: 8,
+      paddingBottom: 6,
+      width: '100%',
+      alignItems: 'stretch',
+    },
+    devicesRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+      minHeight: 0,
+    },
+    filterChip: {
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: t.radius.pill,
+      backgroundColor: `${c.primary}22`,
+      borderWidth: 1,
+      borderColor: `${c.primary}55`,
+    },
+    filterChipText: {
+      fontSize: 10,
+      fontWeight: '800',
+      color: c.primary,
+      letterSpacing: 0.6,
+    },
+    activitySection: {
+      gap: 4,
+    },
+    activityCaption: {
+      fontSize: 9,
+      fontWeight: '700',
       color: c.textMuted,
-      fontSize: 8,
+      letterSpacing: 0.8,
+      textTransform: 'uppercase',
+    },
+    activityTrack: {
+      height: 34,
+      position: 'relative',
+      marginTop: 2,
+    },
+    activityBaseline: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      height: 2,
+      borderRadius: 1,
+      backgroundColor: c.border,
+    },
+    activityDot: {
+      position: 'absolute',
+      bottom: 3,
+      width: 3,
+      height: 11,
+      borderRadius: 1.5,
+      backgroundColor: c.primary,
+    },
+    activityHitRow: {
+      ...StyleSheet.absoluteFillObject,
+      flexDirection: 'row',
+    },
+    activityHitCell: {
+      flex: 1,
+    },
+    activityHitCellSelected: {
+      backgroundColor: `${c.primary}14`,
+      borderRadius: 4,
+    },
+    mixSection: {
+      gap: 6,
+    },
+    mixLabel: {
+      fontSize: 9,
+      fontWeight: '700',
+      color: c.textMuted,
+      letterSpacing: 0.8,
+      textTransform: 'uppercase',
+    },
+    mixDonutRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      minHeight: 0,
+    },
+    mixDonutSvgWrap: {
+      width: 120,
+      height: 120,
+    },
+    mixLegendCol: {
+      flex: 1,
+      minWidth: 0,
+      gap: 4,
+    },
+    mixLegendLine: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    mixLegendSwatch: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+    },
+    mixLegendItemText: {
+      flex: 1,
+      fontSize: 10,
+      fontWeight: '700',
+      color: c.textSecondary,
+    },
+    mixLegendPct: {
+      fontSize: 10,
+      fontWeight: '800',
+      color: c.textMuted,
     },
     sectionHeader: {
       marginTop: 4,
@@ -158,15 +253,17 @@ export function createDashboardStyles(c: ThemeColors) {
       fontWeight: '600',
     },
     packagesWrap: {
-      gap: 10,
+      gap: 8,
     },
     packageCard: {
+      width: '100%',
+      alignSelf: 'stretch',
       backgroundColor: c.surface,
-      borderRadius: t.radius.lg,
+      borderRadius: t.radius.md,
       borderWidth: 1,
       borderColor: c.border,
-      padding: t.spacing.lg,
-      gap: 10,
+      padding: t.spacing.md,
+      gap: 8,
     },
     packageMain: {
       flexDirection: 'row',
@@ -185,22 +282,64 @@ export function createDashboardStyles(c: ThemeColors) {
       color: c.textPrimary,
       fontWeight: '700',
     },
-    packageId: {
-      marginTop: 2,
-      color: c.textMuted,
+    packageLocationInline: {
+      flex: 1,
+      minWidth: 0,
       fontSize: 12,
+      color: c.textMuted,
+      fontStyle: 'italic',
+      fontWeight: '600',
+    },
+    packageInfoIconCol: {
+      width: 14,
+      alignItems: 'flex-start',
+      justifyContent: 'flex-start',
+      paddingTop: 1,
+    },
+    packageInfoBody: {
+      flex: 1,
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'flex-start',
+      gap: 4,
+      minWidth: 0,
+    },
+    packageInfoLabelSlot: {
+      alignItems: 'flex-start',
+    },
+    packageMetaLabel: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: c.textSecondary,
+      letterSpacing: 0.2,
+    },
+    packageInfoRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 4,
+      width: '100%',
+      alignSelf: 'stretch',
+    },
+    packageInfoValueLine: {
+      flex: 1,
+      minWidth: 0,
+      fontSize: 11,
+      fontWeight: '600',
+      lineHeight: 15,
+    },
+    packageInfoType: {
+      fontSize: 11,
+      fontWeight: '700',
+    },
+    packageInfoMutedSmall: {
+      color: c.textSecondary,
+      fontWeight: '600',
+      fontSize: 11,
     },
     packageMeta: {
       gap: 6,
-    },
-    locationRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-    },
-    locationText: {
-      color: c.textSecondary,
-      fontSize: 12,
+      width: '100%',
+      alignSelf: 'stretch',
     },
     progressTrack: {
       height: 6,
@@ -219,10 +358,11 @@ export function createDashboardStyles(c: ThemeColors) {
       fontWeight: '700',
     },
     packageRight: {
-      marginTop: 2,
+      marginTop: 4,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
+      gap: 8,
     },
     statusPill: {
       fontSize: 10,
@@ -242,6 +382,12 @@ export function createDashboardStyles(c: ThemeColors) {
       padding: t.spacing.lg,
       gap: 10,
     },
+    alertCardCompact: {
+      marginTop: 0,
+      paddingVertical: 10,
+      paddingHorizontal: t.spacing.md,
+      gap: 6,
+    },
     alertHeader: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -251,6 +397,9 @@ export function createDashboardStyles(c: ThemeColors) {
       fontSize: 18,
       color: c.textPrimary,
       fontWeight: '800',
+    },
+    alertTitleCompact: {
+      fontSize: 13,
     },
     alertItem: {
       borderLeftWidth: 2,
@@ -268,33 +417,16 @@ export function createDashboardStyles(c: ThemeColors) {
       color: c.textPrimary,
       lineHeight: 20,
     },
+    alertMessageCompact: {
+      fontSize: 12,
+      lineHeight: 16,
+    },
     alertTime: {
       fontSize: 11,
       color: c.textMuted,
       textTransform: 'uppercase',
     },
-    mapCard: {
-      backgroundColor: c.surface,
-      borderRadius: t.radius.lg,
-      borderWidth: 1,
-      borderColor: c.border,
-      overflow: 'hidden',
-    },
-    mapView: {
-      height: 170,
-    },
-    mapFooter: {
-      padding: t.spacing.md,
-    },
-    mapTitle: {
-      color: c.textPrimary,
-      fontSize: t.fontSize.title,
-      fontWeight: '700',
-    },
-    mapSub: {
-      marginTop: 2,
-      color: c.textMuted,
-      fontSize: 12,
-    },
   });
 }
+
+export type DashboardStyles = ReturnType<typeof createDashboardStyles>;
