@@ -68,10 +68,10 @@ namespace {
 /**
  * Collect `num_samples` readings while the board is still,
  * then store the mean bias for each axis.
- * 
+ *
  * gravity_axis: 0=X, 1=Y, 2=Z  (which axis opposes gravity)
  * gravity_sign: +1 or -1        (direction of 1g on that axis)
- * 
+ *
  * At ±8g, 1g = 4096 LSB.
  */
 void calibrateSensor(int gravity_axis = 1, int gravity_sign = 1,
@@ -135,6 +135,28 @@ void setup() {
   //   axis 0=X, 1=Y, 2=Z  |  sign +1 if axis points up, -1 if down
   calibrateSensor(/*gravity_axis=*/1, /*gravity_sign=*/1);
 
+  // ── STEP 1: Gravity axis verification ──────────────────────────────────────
+  // Read one raw sample immediately after calibration while the board is still.
+  // Whichever axis reads ≈ ±4096 is carrying gravity — that value MUST match
+  // the gravity_axis argument passed to calibrateSensor() above.
+  //
+  // If the wrong axis shows ±4096:
+  //   • Update gravity_axis in calibrateSensor() to the correct axis (0=X, 1=Y, 2=Z)
+  //   • Flip gravity_sign if the reading is negative
+  //   • Re-flash and re-run before continuing
+  {
+    Serial.println("=== STEP 1: Gravity axis check ===");
+    Serial.println("    Expect ≈ ±4096 on exactly ONE axis; others near 0.");
+    int16_t ax, ay, az, gx, gy, gz;
+    mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+    Serial.printf("    Raw (pre-bias): ax=%d  ay=%d  az=%d\n", ax, ay, az);
+    if      (abs(ax) > 3000) Serial.println("    → Gravity detected on X axis (axis 0)");
+    else if (abs(ay) > 3000) Serial.println("    → Gravity detected on Y axis (axis 1)");
+    else if (abs(az) > 3000) Serial.println("    → Gravity detected on Z axis (axis 2)");
+    else                     Serial.println("    → WARNING: No axis near ±4096. Board moving or sensor fault.");
+    Serial.println("==================================\n");
+  }
+
   // ── Pre-compute raw-unit normalization params ──
   // Accel: LSB = physical_value * (4096 LSB/g) / (9.81 m/s²/g)
   const float A = 4096.0f / 9.81f;   // LSB per (m/s²)
@@ -192,19 +214,22 @@ void setup() {
 void loop() {
   const float input_scale      = input->params.scale;
   const int   input_zero_point = input->params.zero_point;
- 
-  // Snapshot of the LAST sample's normalised values — printed after inference
-  // so we can sanity-check the preprocessing without halting the loop.
-  float dbg_norm_ax = 0, dbg_norm_ay = 0, dbg_norm_az = 0;
-  float dbg_norm_gx = 0, dbg_norm_gy = 0, dbg_norm_gz = 0;
- 
+
+  // ── STEP 2: Window-mean accumulators ───────────────────────────────────────
+  // Replaced the previous last-sample-only snapshot with a running sum so
+  // the printed normalized values match what the model actually sees
+  // (effectively the window mean). A healthy idle should show all 6
+  // values within ±0.5. Any channel at ±2 or beyond is the problem.
+  float sum_norm_ax = 0, sum_norm_ay = 0, sum_norm_az = 0;
+  float sum_norm_gx = 0, sum_norm_gy = 0, sum_norm_gz = 0;
+
   // ── Collect one window of samples ──────────────────────────────────────────
   for (int i = 0; i < WINDOW_SIZE; i++) {
     unsigned long t0 = millis();
- 
+
     int16_t ax, ay, az, gx, gy, gz;
     mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
- 
+
     // Remove hardware bias
     float fax = ax - bias_ax;
     float fay = ay - bias_ay;
@@ -212,7 +237,7 @@ void loop() {
     float fgx = gx - bias_gx;
     float fgy = gy - bias_gy;
     float fgz = gz - bias_gz;
- 
+
     // Z-score normalise (all in raw LSB units)
     float norm_ax = (fax - raw_mean_ax) / raw_std_ax;
     float norm_ay = (fay - raw_mean_ay) / raw_std_ay;
@@ -220,19 +245,17 @@ void loop() {
     float norm_gx = (fgx - raw_mean_gx) / raw_std_gx;
     float norm_gy = (fgy - raw_mean_gy) / raw_std_gy;
     float norm_gz = (fgz - raw_mean_gz) / raw_std_gz;
- 
-    // Keep last sample for debug print
-    if (i == WINDOW_SIZE - 1) {
-      dbg_norm_ax = norm_ax; dbg_norm_ay = norm_ay; dbg_norm_az = norm_az;
-      dbg_norm_gx = norm_gx; dbg_norm_gy = norm_gy; dbg_norm_gz = norm_gz;
-    }
- 
+
+    // Accumulate for window-mean debug (Step 2)
+    sum_norm_ax += norm_ax; sum_norm_ay += norm_ay; sum_norm_az += norm_az;
+    sum_norm_gx += norm_gx; sum_norm_gy += norm_gy; sum_norm_gz += norm_gz;
+
     // Quantise float → int8
     auto quantise = [&](float v) -> int8_t {
       int q = (int)roundf(v / input_scale) + input_zero_point;
       return (int8_t)constrain(q, -128, 127);
     };
- 
+
     int base = i * NUM_CHANNELS;
     input->data.int8[base + 0] = quantise(norm_ax);
     input->data.int8[base + 1] = quantise(norm_ay);
@@ -240,57 +263,106 @@ void loop() {
     input->data.int8[base + 3] = quantise(norm_gx);
     input->data.int8[base + 4] = quantise(norm_gy);
     input->data.int8[base + 5] = quantise(norm_gz);
- 
+
     // Pace to target sample rate, accounting for processing time
     long elapsed = millis() - t0;
     if (elapsed < SAMPLE_PERIOD_MS)
       delay(SAMPLE_PERIOD_MS - elapsed);
   }
- 
+
+  // Compute window means for the debug print
+  float dbg_norm_ax = sum_norm_ax / WINDOW_SIZE;
+  float dbg_norm_ay = sum_norm_ay / WINDOW_SIZE;
+  float dbg_norm_az = sum_norm_az / WINDOW_SIZE;
+  float dbg_norm_gx = sum_norm_gx / WINDOW_SIZE;
+  float dbg_norm_gy = sum_norm_gy / WINDOW_SIZE;
+  float dbg_norm_gz = sum_norm_gz / WINDOW_SIZE;
+
   // ── Inference ──────────────────────────────────────────────────────────────
   long t_start = millis();
   if (interpreter->Invoke() != kTfLiteOk) {
     Serial.println("Invoke() failed!"); return;
   }
   long t_infer = millis() - t_start;
- 
+
   // ── Parse output ───────────────────────────────────────────────────────────
   int8_t best_val = -128;
   int    best_idx = 0;
- 
+
   for (int i = 0; i < NUM_CLASSES; i++) {
     if (output->data.int8[i] > best_val) {
       best_val = output->data.int8[i];
       best_idx = i;
     }
   }
- 
+
   float out_scale      = output->params.scale;
   int   out_zero_point = output->params.zero_point;
   float confidence     = (best_val - out_zero_point) * out_scale * 100.0f;
- 
-  // ── Output ─────────────────────────────────────────────────────────────────
+
+  // ── STEP 2 output ──────────────────────────────────────────────────────────
+  // Window-mean normalized values. At rest all six should be within ±0.5.
+  // Diagnosis guide:
+  //   |norm_ay| >> 0.5  → gravity axis mismatch (fix Step 1 first)
+  //   |norm_gx| or |norm_gz| >> 0.5  → gyro bias not cancelled; sensor noise
+  //                                     pushing model toward Brake class
   Serial.println("──────────────────────────────────────────────");
-  Serial.printf("Accel (norm) ax:%6.2f  ay:%6.2f  az:%6.2f\n",
+  Serial.println("STEP 2: Window-mean normalized values (target: all within ±0.5 at rest)");
+  Serial.printf("  Accel ax:%6.2f  ay:%6.2f  az:%6.2f\n",
                 dbg_norm_ax, dbg_norm_ay, dbg_norm_az);
-  Serial.printf("Gyro  (norm) gx:%6.2f  gy:%6.2f  gz:%6.2f\n",
+  Serial.printf("  Gyro  gx:%6.2f  gy:%6.2f  gz:%6.2f\n",
                 dbg_norm_gx, dbg_norm_gy, dbg_norm_gz);
+
+  // Flag any channel well outside the expected idle range
+  bool any_bad = false;
+  auto flag = [&](const char* name, float v) {
+    if (fabsf(v) > 1.5f) {
+      Serial.printf("  ⚠ %s = %.2f — FAR outside ±0.5, likely root cause\n", name, v);
+      any_bad = true;
+    } else if (fabsf(v) > 0.5f) {
+      Serial.printf("  ⚠ %s = %.2f — outside ±0.5, worth investigating\n", name, v);
+      any_bad = true;
+    }
+  };
+  flag("ax", dbg_norm_ax); flag("ay", dbg_norm_ay); flag("az", dbg_norm_az);
+  flag("gx", dbg_norm_gx); flag("gy", dbg_norm_gy); flag("gz", dbg_norm_gz);
+  if (!any_bad) Serial.println("  ✓ All channels within ±0.5 — normalization looks healthy");
   Serial.println();
- 
+
   // All class scores
   Serial.println("Scores:");
   for (int i = 0; i < NUM_CLASSES; i++) {
     float score = (output->data.int8[i] - out_zero_point) * out_scale * 100.0f;
-    // Arrow marks the winning class
     Serial.printf("  %s%-22s  %5.1f%%\n",
                   (i == best_idx) ? "▶ " : "  ",
                   CLASS_NAMES[i],
                   score);
   }
- 
+
   Serial.println();
   Serial.printf("▶ %-22s  conf: %5.1f%%  infer: %ld ms\n",
                 CLASS_NAMES[best_idx], confidence, t_infer);
   Serial.println("──────────────────────────────────────────────\n");
 
+  // ── STEP 3 & 4: Retraining notes (no code action required here) ────────────
+  //
+  // STEP 3 — Clean bimodal gyro distributions before retraining:
+  //   The training data has a spurious GYRO_X cluster at ~3.5 rad/s and a
+  //   GYRO_Z cluster at ~-1.5 rad/s (visible in the channel histograms).
+  //   These inflate std_gx / std_gz, causing the normalizer to amplify even
+  //   tiny MPU6050 noise by ×20–×42, which the model mistakes for Brake.
+  //
+  //   Fix in the Python preprocessing pipeline:
+  //     • Apply the existing filter_outliers pass with max_gyro_std set low
+  //       enough to drop sessions containing those clusters.
+  //     • Confirm the cleaned histograms are unimodal and centred near 0
+  //       before retraining.
+  //
+  // STEP 4 — Validate MPU6050 signal distributions before deploying:
+  //   After retraining (or as a quick sanity check before):
+  //     • Record ~5 min of MPU6050 data across all manoeuvre classes.
+  //     • Compare per-channel mean and std against the training stats above.
+  //     • If any channel mean differs by more than 0.3 × its training std,
+  //       or if the std ratio is outside 0.5–2.0, add a small MPU6050
+  //       fine-tuning set or recollect training data with the target hardware.
 }

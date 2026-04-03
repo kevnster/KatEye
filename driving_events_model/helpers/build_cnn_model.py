@@ -107,7 +107,7 @@ def build_cnn_model(window_size, n_channels, n_classes, learning_rate=1e-3, drop
     # Conv Block 1 — local feature detection                              #
     # ------------------------------------------------------------------ #
     x = keras.layers.Conv1D(
-        filters     = 8,
+        filters     = 16,
         kernel_size = 3,
         padding     = "same",
         name        = "conv1d_1",
@@ -118,7 +118,7 @@ def build_cnn_model(window_size, n_channels, n_classes, learning_rate=1e-3, drop
     # Conv Block 2 — higher-level feature composition                     #
     # ------------------------------------------------------------------ #
     x = keras.layers.Conv1D(
-        filters     = 16,
+        filters     = 32,
         kernel_size = 3,
         padding     = "same",
         name        = "conv1d_2",
@@ -135,7 +135,7 @@ def build_cnn_model(window_size, n_channels, n_classes, learning_rate=1e-3, drop
     # Classification head                                                 #
     # ------------------------------------------------------------------ #
     x = keras.layers.Flatten(name="flatten")(x)
-    x = keras.layers.Dense(16, name="dense_1")(x)
+    x = keras.layers.Dense(32, name="dense_1")(x)
     x = keras.layers.ReLU(name="relu_3")(x)
     x = keras.layers.Dropout(dropout_rate, name="dropout_2")(x)
     outputs = keras.layers.Dense(n_classes, activation="softmax", name="output")(x)

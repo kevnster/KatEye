@@ -44,18 +44,12 @@ from helpers.build_cnn_model import compute_class_weights, build_cnn_model, save
 from helpers.train_eval import train_model, evaluate_model
 from helpers.plot_save_results import plot_results
 from helpers.tflite_convert import convert_to_tflite, verify_tflite, export_c_header
+from helpers.filter_outliers import filter_outliers  
 
-
-# ------------------------------------------------------------------ #
-# Reproducibility                                                      #
-# ------------------------------------------------------------------ #
 SEED = 0
 np.random.seed(SEED)
 tf.random.set_seed(SEED)
 
-# ------------------------------------------------------------------ #
-# Configuration                                                        #
-# ------------------------------------------------------------------ #
 WINDOW_SIZE   = 112
 HOP_SIZE      = 56
 N_CHANNELS    = 6
@@ -82,16 +76,8 @@ OUTPUT_DIR              = "model/output"
 DRIVING_EVENT_DATA_PATH = "./data/driving_events.db"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-
-# ================================================================== #
-#  PIPELINE                                                           #
-# ================================================================== #
-
 def run_pipeline():
 
-    # -------------------------------------------------------------- #
-    # 1. Load data and split into sessions                            #
-    # -------------------------------------------------------------- #
     print("=" * 60)
     print("1 — Loading data and splitting into sessions")
     print("=" * 60)
@@ -100,6 +86,21 @@ def run_pipeline():
         path             = DRIVING_EVENT_DATA_PATH,
         max_session_rows = 3000,
         gap_threshold    = 5,
+    )
+
+    print("\n" + "=" * 60)
+    print("1b — Outlier filtering (pre-windowing)")
+    print("=" * 60)
+
+    df_sessions = filter_outliers(
+        df                   = df_sessions,
+        label_col            = "ACTIVITY",
+        session_col          = "SessionID",
+        window_size          = WINDOW_SIZE,   # must match extract_windows
+        hop_size             = HOP_SIZE,      # must match extract_windows
+        max_gyro_std         = 0.045,         # rad/s — Pass 2: still-class window filter
+        max_session_gyro_mean= 0.5,           # rad/s — Pass 3: bimodal artefact filter
+        verbose              = True,
     )
 
     # -------------------------------------------------------------- #
