@@ -36,8 +36,7 @@ KatEye/
 ```
 
 ## System architecture
-
-`<screenshot of system architecture>`
+<img width="976" height="561" alt="PNG image" src="https://github.com/user-attachments/assets/80b85f67-63d5-4522-937e-4144244bed02" />
 
 ## ML model
 
@@ -76,6 +75,13 @@ Press `i` for the iOS Simulator, or use Expo Go on a device. With the dev server
 - **RTDB empty or permission errors**: Confirm `EXPO_PUBLIC_FIREBASE_DATABASE_URL` and security rules allow the client to **read** `alerts` for your test identity. In the app, open the **Config** tab (bottom navigation), use the **Data connection** card, and tap refresh: it re-runs the Firebase read and surfaces the same status string you would infer from logs (fixture vs live, count, or error message) without digging into Metro.
 
 ## Screenshots
+<p>
+  <img width="19%" alt="image" src="https://github.com/user-attachments/assets/67991ec0-742f-41cf-8600-c1d984c5b1fb" />
+  <img width="19%" alt="image" src="https://github.com/user-attachments/assets/3822b859-adf1-485f-89f9-3a9bf33251f0" />
+  <img width="19%" alt="simulator_screenshot_55F98F53-8354-4424-BC60-15FD8C5712D5" src="https://github.com/user-attachments/assets/b4c41ff9-bf4a-4b56-9485-ed9532800f1c" />
+  <img width="19%" alt="image" src="https://github.com/user-attachments/assets/1dee3d40-8a0e-4d23-bb9b-2f2be22af361" />
+  <img width="19%" alt="image" src="https://github.com/user-attachments/assets/a3c1885c-8e15-49a3-9df9-73af8bce4e6f" />
+</p>
 
 ## License
 
