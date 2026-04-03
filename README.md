@@ -65,7 +65,7 @@ Press `i` for the iOS Simulator, or use Expo Go on a device. With the dev server
 
 ## Roadmap (gantt)
 
-`<screenshot of gantt chart>`
+<img width="1149" height="247" alt="CleanShot 2026-04-03 at 14 37 05@2x" src="https://github.com/user-attachments/assets/b89fa9dc-276d-4801-9f37-5c0148c90838" />
 
 ## Troubleshooting
 
