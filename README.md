@@ -2,6 +2,8 @@
 
 An end-to-end machine learning pipeline that classifies driving behaviors from IMU sensor data (gyroscope + accelerometer) using a 1D Convolutional Neural Network, optimized for deployment on ESP32-S3 microcontrollers.
 
+<img src="./assets/systemDesign.png" alt="system" width="550">
+
 ## TLDR
 
 The system identifies 9 driving events in real time from a 6-axis inertial measurement unit (MPU6050):
