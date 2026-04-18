@@ -1,40 +1,6 @@
 """
-helpers/filter_outliers.py
-
 Removes noisy / mislabelled samples from the raw session DataFrame
 before sliding-window extraction.
-
-Data context
-------------
-  Source   : Smartphone IMU (not a fixed embedded sensor)
-  Rate     : ~56 Hz
-  Channels : ACCEL_X, ACCEL_Y, ACCEL_Z  (m/s²)
-             GYRO_X,  GYRO_Y,  GYRO_Z   (rad/s)
-  Gravity  : rides on ACCEL_Y (~9.81 m/s² when phone is upright)
-
-Two complementary strategies are applied:
-
-  Pass 1 — IQR per-sample filter
-    For every (class, channel) pair declared in OUTLIER_CONFIG, any
-    individual row whose value falls outside [Q1 - k*IQR, Q3 + k*IQR]
-    is dropped.  Catches single-sample spikes, e.g. the GYRO_X/Y/Z
-    outliers visible in the Idling box-plot.
-
-  Pass 2 — Window-level std-dev filter for stationary classes
-    After IQR cleaning, proto-windows are reconstructed using the same
-    (window_size, hop_size) and time-sort order as extract_windows().
-    Any window whose gyro std-dev exceeds `max_gyro_std` on any axis
-    is discarded entirely.  A truly still phone must be quiet.
-
-Design notes
-------------
-  • Pass 1 resets the DataFrame index before Pass 2 so that integer
-    positional lookups inside sessions remain contiguous.
-  • Proto-windows in Pass 2 are built with the same Hour/Minute/Second
-    sort key used by extract_windows(), guaranteeing identical boundaries.
-  • `max_gyro_std` defaults to 0.10 rad/s — calibrated for smartphone
-    MEMS gyros at 56 Hz.  Tighten toward 0.05 only if your device is
-    known to be very quiet at rest.
 """
 
 from __future__ import annotations
@@ -42,23 +8,9 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-
-# ------------------------------------------------------------------ #
-# Configuration                                                        #
-# ------------------------------------------------------------------ #
-
-# Per-class channel rules:  { class_label: [(column, iqr_multiplier), ...] }
-#
-# Idling — all gyro axes must be near-zero, and accel axes must stay
-# within the expected static ranges.  Tighter k for gyros because any
-# large rotation during a supposed idle is definitively mislabelled.
-#
-# ACCEL_Y is the gravity channel for an upright phone (~9.81 m/s²).
-# Anything far from that is a bump / pickup event and should be removed.
-
 OUTLIER_CONFIG: dict[str, list[tuple[str, float]]] = {
     "Idling": [
-        # Gyro channels: must be near-zero — use tight multiplier
+        # Gyro channels: must be near-zero  use tight multiplier
         ("GYRO_X", 1.5),
         ("GYRO_Y", 1.5),
         ("GYRO_Z", 1.5),
@@ -72,11 +24,6 @@ OUTLIER_CONFIG: dict[str, list[tuple[str, float]]] = {
     # "Brake": [("ACCEL_Y", 2.5)],
     # "Aggressive Left": [("GYRO_Z", 2.0)],
 }
-
-# Gyro std-dev ceiling for the window-level Pass 2 filter.
-# Smartphone MEMS gyros at 56 Hz have an idle noise floor of roughly
-# 0.01–0.05 rad/s.  A threshold of 0.10 rad/s gives a comfortable
-# margin above sensor noise while still rejecting accidental movements.
 DEFAULT_MAX_GYRO_STD: float = 0.10
 
 # Classes subjected to the window-level gyro std filter.
@@ -85,31 +32,10 @@ STILL_CLASSES: list[str] = ["Idling"]
 GYRO_COLS:  list[str] = ["GYRO_X", "GYRO_Y", "GYRO_Z"]
 TIME_SORT_COLS: list[str] = ["Hour", "Minute", "Second"]
 
-# ── Pass 3 configuration ─────────────────────────────────────────── #
-# Absolute mean gyro threshold for the session-level bimodal filter.
-# Any session (of ANY class) whose mean |GYRO_X| or mean |GYRO_Z|
-# exceeds this threshold is dropped entirely.
-#
-# Rationale: the training data contains spurious sessions with a
-# sustained GYRO_X cluster at ~3.5 rad/s and GYRO_Z at ~-1.5 rad/s
-# (visible as bimodal peaks in the channel histograms).  These are
-# recording artefacts — real driving gyro should oscillate around zero,
-# not sit at a large DC offset.  They inflate std_gx / std_gz and cause
-# the normalizer to amplify MPU6050 idle noise by ×20–×42.
-#
-# 0.5 rad/s (~28°/s) is well above the sensor noise floor but well
-# below the artefact clusters.  Adjust if your data's legitimate
-# manoeuvre sessions are being incorrectly dropped (check the verbose
-# output for which sessions are removed and which class they belong to).
 DEFAULT_MAX_SESSION_GYRO_MEAN: float = 0.5   # rad/s
 
 # Axes to check in the session-level filter.
 SESSION_GYRO_CHECK_COLS: list[str] = ["GYRO_X", "GYRO_Z"]
-
-
-# ================================================================== #
-#  Public API                                                         #
-# ================================================================== #
 
 def filter_outliers(
     df: pd.DataFrame,
@@ -126,32 +52,10 @@ def filter_outliers(
     """
     Clean the raw session DataFrame in two passes.
 
-    Parameters
-    ----------
-    df            : Raw sessions DataFrame — output of prepare_data().
-                    Must contain: ACTIVITY, SessionID, Hour, Minute, Second,
-                    ACCEL_X/Y/Z, GYRO_X/Y/Z.
-    label_col     : Column holding the class label string. Default "ACTIVITY".
-    session_col   : Column holding the session identifier. Default "SessionID"
-                    (matches the output of data_preparation.prepare_data()).
-    window_size   : Must equal the window_size passed to extract_windows().
-    hop_size      : Must equal the hop_size passed to extract_windows().
-    outlier_config: Override module-level OUTLIER_CONFIG.
-    still_classes : Override module-level STILL_CLASSES.
-    max_gyro_std  : Gyro std-dev ceiling (rad/s) for the window-level filter.
-    max_session_gyro_mean : Absolute mean gyro ceiling (rad/s) for the
-                    session-level bimodal artefact filter (Pass 3).
-                    Any session in any class whose mean |GYRO_X| or mean
-                    |GYRO_Z| exceeds this is dropped entirely.
-                    Default 0.5 rad/s.
-    verbose       : Print a per-step removal report.
-
     Returns
-    -------
     Cleaned DataFrame with a fresh contiguous index.
     """
 
-    # ── Validate inputs ───────────────────────────────────────────
     _check_required_columns(df, label_col, session_col)
 
     if outlier_config is None:
@@ -162,14 +66,14 @@ def filter_outliers(
     rows_initial = len(df)
     _log(f"\nOutlier filter started — {rows_initial:,} rows total", verbose)
 
-    # ── Pass 1: IQR per-sample filter ────────────────────────────
+    #IQR per-sample filter 
     df = _iqr_filter(df, label_col, outlier_config, verbose)
 
     # Reset index so Pass 2 positional slicing is contiguous
     # (Pass 1 leaves gaps wherever rows were dropped)
     df = df.reset_index(drop=True)
 
-    # ── Pass 2: Window-level gyro std filter ─────────────────────
+    # Pass 2: Window-level gyro std filter
     df = _window_std_filter(
         df, label_col, session_col,
         still_classes, window_size, hop_size, max_gyro_std, verbose,
@@ -177,10 +81,6 @@ def filter_outliers(
 
     df = df.reset_index(drop=True)
 
-    # ── Pass 3: Session-level bimodal gyro artefact filter ───────
-    # Targets the spurious DC-offset gyro clusters (e.g. GYRO_X ≈ 3.5 rad/s,
-    # GYRO_Z ≈ −1.5 rad/s) that appear in any class and corrupt the training
-    # distribution, causing std_gx / std_gz to be artificially inflated.
     df = _session_gyro_mean_filter(
         df, label_col, session_col, max_session_gyro_mean, verbose,
     )
@@ -202,9 +102,7 @@ def filter_outliers(
     return df
 
 
-# ================================================================== #
-#  Internal helpers                                                   #
-# ================================================================== #
+# HELPERS
 
 def _check_required_columns(
     df: pd.DataFrame,

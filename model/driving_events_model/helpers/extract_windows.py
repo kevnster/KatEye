@@ -54,15 +54,15 @@ def extract_windows(df, window_size, hop_size, sensor_cols, class_names):
             f"Activities found in data but missing from class_names: {unknown_activities}"
         )
 
-    # 1. Build label lookup                                                #
+    # 1. Build label lookup                                                
     activity_to_idx = {name: i for i, name in enumerate(class_names)}
 
-    # 2. Initialise collection lists                                       #
+    # 2. Initialise collection lists                                       
     X_windows = []
     y_labels  = []
     groups    = []
 
-    # 3-4. Iterate over sessions and slide the window                     #
+    # 3-4. Iterate over sessions and slide the window                     
     skipped_sessions = 0
 
     for sid in df["SessionID"].unique():
