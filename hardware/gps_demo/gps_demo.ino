@@ -4,8 +4,9 @@
   Wiring:
     GPS VCC  → 3.3V
     GPS GND  → GND
-    GPS TX   → ESP32 GPIO 16 (RX2)
-    GPS RX   → ESP32 GPIO 17 (TX2)   (optional — only for config)
+    GPS TX   → ESP32 GPIO 25
+    GPS RX   → ESP32 GPIO 26   (optional — only for config)
+  (GPIO 16/17 are reserved for PSRAM on WROVER, so we use UART2 remapped.)
 
   Library:
     Install "TinyGPSPlus" by Mikal Hart via Arduino Library Manager.
@@ -15,8 +16,8 @@
 
 #include <TinyGPSPlus.h>
 
-#define GPS_RX_PIN 16   // ESP32 pin that receives from GPS TX
-#define GPS_TX_PIN 17   // ESP32 pin that transmits to GPS RX
+#define GPS_RX_PIN 25   // ESP32 pin that receives from GPS TX
+#define GPS_TX_PIN 26   // ESP32 pin that transmits to GPS RX
 #define GPS_BAUD   9600 // NEO-6M default
 
 TinyGPSPlus gps;
