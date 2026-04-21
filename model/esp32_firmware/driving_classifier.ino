@@ -9,7 +9,6 @@
 #include "MPU6050.h"
 #include "Wire.h"
 
-// ─── Constants ───────────────────────────────────────────────────────────────
 
 namespace {
 
@@ -63,7 +62,6 @@ namespace {
 
 } // namespace
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 /**
  * Collect `num_samples` readings while the board is still,
@@ -110,7 +108,6 @@ void calibrateSensor(int gravity_axis = 1, int gravity_sign = 1,
   Serial.println("Calibration done.\n");
 }
 
-// ─── Setup ───────────────────────────────────────────────────────────────────
 
 void setup() {
   Serial.begin(115200);
@@ -187,7 +184,6 @@ void setup() {
   Serial.println("Model ready. Starting inference loop.\n");
 }
 
-// ─── Loop ────────────────────────────────────────────────────────────────────
 
 void loop() {
   const float input_scale      = input->params.scale;

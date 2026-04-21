@@ -284,9 +284,7 @@ def run_pipeline():
         keras_test_acc = test_acc,
     )
 
-    # -------------------------------------------------------------- #
-    # 14. Export C header for ESP32-S3 firmware                      #
-    # -------------------------------------------------------------- #
+    # 14. Export C header for ESP32-S3 firmware                      
     print("\n" + "=" * 60)
     print("14 — Generating C header for ESP32-S3 firmware")
     print("=" * 60)
