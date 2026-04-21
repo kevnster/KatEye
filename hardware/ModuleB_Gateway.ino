@@ -30,7 +30,7 @@
 #define INFERENCE_STRIDE  56        // run inference every 56 new samples (50% overlap → ~1 s)
 
 #define DEBOUNCE_MS       2000      // ignore duplicate events within this window
-#define BATCH_FLUSH_MS    30000     // flush buffered events to Firebase every 30 sec
+#define BATCH_FLUSH_MS    15000     // flush buffered events to Firebase every 15 sec
 #define MAX_BUFFERED_EVENTS 20      // max events to buffer before forced flush
 
 // WiFi / Firebase — fill in for live demo, or leave blank for serial-only mode
@@ -43,7 +43,9 @@
 typedef struct __attribute__((packed)) {
     uint16_t seq;
     uint8_t  count;
-    uint8_t  _pad;
+    uint8_t  gps_fix;                    // 0 = no fix, 1 = valid lat/lng
+    int32_t  lat_e7;                     // latitude  * 1e7
+    int32_t  lng_e7;                     // longitude * 1e7
     int8_t   samples[BATCH_SIZE * NUM_CHANNELS];
 } SensorPacket;
 
@@ -87,6 +89,11 @@ namespace {
 // ── Debounce state ──────────────────────────────────────────────
 unsigned long lastEventTime = 0;
 
+// ── Latest location cached from Module A's packets ──────────────
+static bool    haveGpsFix = false;
+static int32_t lastLatE7  = 0;
+static int32_t lastLngE7  = 0;
+
 // ── Event batch buffer ─────────────────────────────────────────
 struct BufferedEvent {
     const char* eventType;
@@ -104,9 +111,21 @@ void connectWiFi();
 
 // ── ESP-NOW receive callback ────────────────────────────────────
 void onDataRecv(const esp_now_recv_info_t *info, const uint8_t *data, int len) {
-    if (len < 4) return;  // too small for header
+    if (len != sizeof(SensorPacket)) {
+        Serial.printf("[B] Unexpected packet size %d (expected %u) — dropping\n",
+                      len, (unsigned)sizeof(SensorPacket));
+        return;
+    }
 
     const SensorPacket* pkt = (const SensorPacket*)data;
+
+    // Cache latest location from Module A
+    if (pkt->gps_fix) {
+        haveGpsFix = true;
+        lastLatE7  = pkt->lat_e7;
+        lastLngE7  = pkt->lng_e7;
+    }
+
     int count = pkt->count;
     if (count > BATCH_SIZE) count = BATCH_SIZE;
 
@@ -340,6 +359,15 @@ void flushToFirebase() {
     doc["device_id"] = "kateye-01";
     doc["timestamp"][".sv"] = "timestamp";  // Firebase server timestamp
     doc["event_count"] = eventCount;
+
+    // Latest known location (from Module A's GPS)
+    if (haveGpsFix) {
+        JsonObject loc = doc["location"].to<JsonObject>();
+        loc["lat"] = lastLatE7 / 1e7;
+        loc["lng"] = lastLngE7 / 1e7;
+    } else {
+        doc["location"] = (const char*)nullptr;
+    }
 
     // List of events in this batch
     JsonArray events = doc["events"].to<JsonArray>();

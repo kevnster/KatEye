@@ -1,10 +1,11 @@
 /*
-  Module A — Sensor Node
-  Hardware: ESP32 Wrover + MPU-6050 (Adafruit breakout)
+  Module A — Sensor Node (mobile, on package)
+  Hardware: ESP32 Wrover + MPU-6050 (Adafruit breakout) + NEO-6M GPS
 
   Reads accelerometer + gyroscope at 56 Hz using a hardware timer.
   Preprocesses to INT8 (z-score normalize → quantize).
-  Batches samples and streams to Module B via ESP-NOW.
+  Services GPS (NMEA @ 9600 baud) in the main loop; caches latest fix.
+  Batches samples + current lat/lng and streams to Module B via ESP-NOW.
 */
 
 #include <Arduino.h>
@@ -12,6 +13,7 @@
 #include <WiFi.h>
 #include <esp_now.h>
 #include <esp_wifi.h>
+#include <TinyGPSPlus.h>
 
 #include "imu_sensor.h"
 #include "preprocessing.h"
@@ -21,20 +23,30 @@
 #define SAMPLE_PERIOD_US  (1000000 / SAMPLE_RATE_HZ)   // ~17857 µs
 #define BATCH_SIZE        14          // samples per ESP-NOW packet
 
+// GPS (NEO-6M on UART2, remapped because 16/17 are PSRAM on WROVER)
+#define GPS_RX_PIN        25          // ESP32 pin that receives from GPS TX
+#define GPS_TX_PIN        26          // ESP32 pin that transmits to GPS RX
+#define GPS_BAUD          9600
+
 // WiFi SSID — used ONLY to discover the AP channel so ESP-NOW matches Module B
 #define WIFI_SSID         "Andy"
 
 // ── ESP-NOW packet ──────────────────────────────────────────────
-// Header (4 bytes) + payload (14 × 6 = 84 bytes) = 88 bytes  (max 250)
+// Header (12 bytes) + payload (14 × 6 = 84 bytes) = 96 bytes  (max 250)
+// lat/lng stored as int32 scaled by 1e7 (≈ 1 cm precision, no floats on the wire)
 typedef struct __attribute__((packed)) {
     uint16_t seq;                               // rolling sequence number
     uint8_t  count;                             // samples in this packet (≤ BATCH_SIZE)
-    uint8_t  _pad;                              // alignment padding
+    uint8_t  gps_fix;                           // 0 = no fix, 1 = valid lat/lng
+    int32_t  lat_e7;                            // latitude  * 1e7
+    int32_t  lng_e7;                            // longitude * 1e7
     int8_t   samples[BATCH_SIZE * NUM_CHANNELS]; // INT8 preprocessed data
 } SensorPacket;
 
 // ── Globals ─────────────────────────────────────────────────────
 IMUSensor imu;
+TinyGPSPlus gps;
+HardwareSerial GPSSerial(2);
 
 // Replace broadcast with Module B's actual MAC if you want unicast.
 // Broadcast works fine for a two-device demo.
@@ -46,6 +58,11 @@ hw_timer_t *sampleTimer   = NULL;
 SensorPacket txPacket;
 uint16_t     seqCounter   = 0;
 uint8_t      batchIndex   = 0;
+
+// Latest cached GPS fix (updated opportunistically from NMEA stream)
+int32_t lastLatE7    = 0;
+int32_t lastLngE7    = 0;
+bool    haveGpsFix   = false;
 
 // ── Timer ISR — fires at 56 Hz ─────────────────────────────────
 void IRAM_ATTR onSampleTimer() {
@@ -69,6 +86,10 @@ void setup() {
         Serial.println("IMU init failed — halting.");
         while (1) delay(1000);
     }
+
+    // --- GPS (non-blocking; fix may take minutes) ---
+    GPSSerial.begin(GPS_BAUD, SERIAL_8N1, GPS_RX_PIN, GPS_TX_PIN);
+    Serial.println("GPS: UART2 up on GPIO 25/26, waiting for fix in background.");
 
     // --- Discover AP channel so ESP-NOW matches Module B ---
     WiFi.mode(WIFI_STA);
@@ -118,6 +139,15 @@ void setup() {
 
 // ── Loop ────────────────────────────────────────────────────────
 void loop() {
+    // Service GPS NMEA stream opportunistically — never block the 56 Hz path.
+    while (GPSSerial.available()) {
+        if (gps.encode(GPSSerial.read()) && gps.location.isUpdated()) {
+            lastLatE7  = (int32_t)(gps.location.lat() * 1e7);
+            lastLngE7  = (int32_t)(gps.location.lng() * 1e7);
+            haveGpsFix = true;
+        }
+    }
+
     if (!sampleReady) return;
     sampleReady = false;
 
@@ -135,8 +165,11 @@ void loop() {
 
     // 3. When batch is full, transmit
     if (batchIndex >= BATCH_SIZE) {
-        txPacket.seq   = seqCounter++;
-        txPacket.count = batchIndex;
+        txPacket.seq     = seqCounter++;
+        txPacket.count   = batchIndex;
+        txPacket.gps_fix = haveGpsFix ? 1 : 0;
+        txPacket.lat_e7  = lastLatE7;   // last known (0 if never locked)
+        txPacket.lng_e7  = lastLngE7;
 
         esp_now_send(peerAddr, (uint8_t *)&txPacket, sizeof(txPacket));
 
@@ -145,9 +178,13 @@ void loop() {
         // Debug print once per second (~4 packets/sec)
         static uint16_t printDiv = 0;
         if (++printDiv >= 4) {
-            Serial.printf("[A] seq=%u  last sample: ax=%+.2f ay=%+.2f az=%+.2f  gx=%+.3f gy=%+.3f gz=%+.3f\n",
-                          txPacket.seq, r.accel_x, r.accel_y, r.accel_z,
-                          r.gyro_x, r.gyro_y, r.gyro_z);
+            Serial.printf("[A] seq=%u  accel=(%+.2f,%+.2f,%+.2f)  gyro=(%+.3f,%+.3f,%+.3f)  gps=%s %.6f,%.6f  sats=%u\n",
+                          txPacket.seq,
+                          r.accel_x, r.accel_y, r.accel_z,
+                          r.gyro_x,  r.gyro_y,  r.gyro_z,
+                          haveGpsFix ? "FIX" : "---",
+                          lastLatE7 / 1e7, lastLngE7 / 1e7,
+                          gps.satellites.isValid() ? gps.satellites.value() : 0);
             printDiv = 0;
         }
     }
