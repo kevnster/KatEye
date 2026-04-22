@@ -157,6 +157,14 @@ export function createDashboardStyles(c: ThemeColors) {
       letterSpacing: 0.8,
       textTransform: 'uppercase',
     },
+    activityRangeLabel: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: c.primary,
+      marginTop: 1,
+      marginBottom: 1,
+      fontVariant: ['tabular-nums'],
+    },
     activityTrack: {
       height: 34,
       position: 'relative',
@@ -340,15 +348,6 @@ export function createDashboardStyles(c: ThemeColors) {
       gap: 6,
       width: '100%',
       alignSelf: 'stretch',
-    },
-    progressTrack: {
-      height: 6,
-      borderRadius: t.radius.sm,
-      backgroundColor: c.border,
-      overflow: 'hidden',
-    },
-    progressFill: {
-      height: '100%',
     },
     damageText: {
       fontSize: 10,

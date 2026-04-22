@@ -20,6 +20,7 @@ const DAY_MS = 86_400_000;
 
 export type BuildFleetDashboardOptions = {
   nowMs?: number;
+  use12h?: boolean;
 };
 
 export function createDashboardPalette(colors: ThemeColors) {
@@ -151,6 +152,7 @@ export function buildFleetDashboard(
   if (events.length === 0) return null;
 
   const nowMs = options?.nowMs ?? Date.now();
+  const use12h = options?.use12h ?? false;
   const windowEndMs = nowMs;
   const windowStartMs = nowMs - DAY_MS;
 
@@ -212,7 +214,7 @@ export function buildFleetDashboard(
     {
       id: 'latest',
       label: 'Last alert',
-      value: latestTs ? formatTimestampEst24h(latestTs) : '—',
+      value: latestTs ? formatTimestampEst24h(latestTs, use12h) : '—',
       kind: 'value',
     },
   ];

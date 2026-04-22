@@ -57,18 +57,18 @@ export function parseImuSnapshot(raw: unknown): ImuSnapshot | null {
   };
 }
 
-export function formatTimestampEst24h(ms: number): string {
+export function formatTimestampEst24h(ms: number, use12h = false): string {
   if (!Number.isFinite(ms) || ms <= 0) return '—';
   return new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/New_York',
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
-    hour12: false,
+    hour12: use12h,
   }).format(new Date(ms));
 }
 
-export function formatTimestampEstMmDdYyAnd24h(ms: number): string {
+export function formatTimestampEstMmDdYyAnd24h(ms: number, use12h = false): string {
   if (!Number.isFinite(ms) || ms <= 0) return '—';
   const d = new Date(ms);
   const opts: Intl.DateTimeFormatOptions = { timeZone: 'America/New_York' };
@@ -78,7 +78,7 @@ export function formatTimestampEstMmDdYyAnd24h(ms: number): string {
     day: '2-digit',
     year: '2-digit',
   }).format(d);
-  const timePart = formatTimestampEst24h(ms);
+  const timePart = formatTimestampEst24h(ms, use12h);
   return `${datePart} ${timePart}`;
 }
 

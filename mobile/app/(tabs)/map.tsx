@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import MapView, { Circle, Marker, type Region } from 'react-native-maps';
 
+import { ScreenFade } from '@/components/animation/screen-fade';
 import { TopBar } from '@/components/navigation/top-bar';
 import { useAlertEvents } from '@/context/alerts-events';
 import { resolveEventTypeColor } from '@/features/dashboard/event-type-colors';
@@ -447,9 +448,10 @@ export default function MapScreen() {
   );
 
   return (
-    <View style={styles.root}>
-      <TopBar />
-      <MapView
+    <ScreenFade>
+      <View style={styles.root}>
+        <TopBar />
+        <MapView
         style={styles.map}
         region={region}
         onRegionChangeComplete={setRegion}
@@ -487,7 +489,7 @@ export default function MapScreen() {
           </Marker>,
         ])}
       </MapView>
-      <View style={styles.filterDropdownWrap}>
+        <View style={styles.filterDropdownWrap}>
         <Pressable
           onPress={() => setFilterMenuOpen((v) => !v)}
           style={[styles.filterChip, styles.filterChipActive]}>
@@ -518,7 +520,7 @@ export default function MapScreen() {
           </View>
         ) : null}
       </View>
-      <View style={styles.zoomBar}>
+        <View style={styles.zoomBar}>
         <Pressable onPress={() => adjustZoom('in')} style={styles.zoomBtn}>
           <MaterialCommunityIcons name="plus" size={18} color={colors.textPrimary} />
         </Pressable>
@@ -527,7 +529,7 @@ export default function MapScreen() {
           <MaterialCommunityIcons name="minus" size={18} color={colors.textPrimary} />
         </Pressable>
       </View>
-      <View style={styles.glanceTray}>
+        <View style={styles.glanceTray}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 4 }}>
           {inFramePackages.length === 0 ? (
             <View style={styles.glanceCard}>
@@ -580,11 +582,12 @@ export default function MapScreen() {
           )}
         </ScrollView>
       </View>
-      <View style={styles.footer}>
-        <Text style={styles.footerText} numberOfLines={2}>
-          {inFramePackages.length} package(s) in frame · use card chevron for twin · {locLabel}
-        </Text>
+        <View style={styles.footer}>
+          <Text style={styles.footerText} numberOfLines={2}>
+            {inFramePackages.length} package(s) in frame · use card chevron for twin · {locLabel}
+          </Text>
+        </View>
       </View>
-    </View>
+    </ScreenFade>
   );
 }

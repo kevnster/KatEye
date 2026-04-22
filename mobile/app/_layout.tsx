@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 
 import { AlertsEventsProvider } from '@/context/alerts-events';
+import { DisplayPreferencesProvider } from '@/context/display-preferences';
 import { AppThemeProvider, useAppTheme } from '@/context/theme';
 import { AppNavigationDark, AppNavigationLight } from '@/styles/navigation-theme';
 
@@ -14,9 +15,11 @@ export const unstable_settings = {
 export default function RootLayout() {
   return (
     <AppThemeProvider>
-      <AlertsEventsProvider>
-        <RootNav />
-      </AlertsEventsProvider>
+      <DisplayPreferencesProvider>
+        <AlertsEventsProvider>
+          <RootNav />
+        </AlertsEventsProvider>
+      </DisplayPreferencesProvider>
     </AppThemeProvider>
   );
 }
@@ -26,7 +29,11 @@ function RootNav() {
 
   return (
     <ThemeProvider value={scheme === 'dark' ? AppNavigationDark : AppNavigationLight}>
-      <Stack>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          animation: 'fade_from_bottom',
+        }}>
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       </Stack>
