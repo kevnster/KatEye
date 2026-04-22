@@ -150,13 +150,15 @@ void setup() {
     delay(300);
     Serial.println("Module B — Gateway + ML Inference");
 
-    // --- Allocate tensor arena in PSRAM ---
-    tensorArena = (uint8_t*)ps_malloc(kTensorArenaSize);
+    // --- Allocate tensor arena in regular heap (plain ESP32 has no PSRAM) ---
+    tensorArena = (uint8_t*)malloc(kTensorArenaSize);
     if (!tensorArena) {
-        Serial.println("PSRAM allocation failed! Enable PSRAM in Tools menu.");
+        Serial.printf("Tensor arena alloc failed (wanted %d KB). Free heap: %u\n",
+                      kTensorArenaSize / 1024, ESP.getFreeHeap());
         while (1) delay(1000);
     }
-    Serial.println("PSRAM: 64 KB tensor arena allocated.");
+    Serial.printf("Tensor arena: %d KB allocated. Free heap: %u\n",
+                  kTensorArenaSize / 1024, ESP.getFreeHeap());
 
     // --- Load TFLite model ---
     tflModel = tflite::GetModel(driving_cnn_model);
