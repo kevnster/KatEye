@@ -9,6 +9,20 @@ import type { ThemeColors } from '@/styles/app-theme';
 
 type StatPalette = { statValueColor: (stat: DashboardStat) => string };
 
+function formatHourRangeLabel(activity: FleetActivityModel, bucketIndex: number): string {
+  const span = activity.windowEndMs - activity.windowStartMs;
+  if (span <= 0) return '—';
+  const bucketStart = activity.windowStartMs + (bucketIndex / 24) * span;
+  const bucketEnd = activity.windowStartMs + ((bucketIndex + 1) / 24) * span;
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+  return `${fmt.format(new Date(bucketStart))} - ${fmt.format(new Date(bucketEnd))} EST`;
+}
+
 export function DashboardStatsGrid({
   stats,
   styles,
@@ -62,6 +76,9 @@ export function FleetActivityStrip({
   return (
     <View style={styles.activitySection}>
       <Text style={styles.activityCaption}>Last 24h · tap a segment to filter devices</Text>
+      {selectedBucket != null ? (
+        <Text style={styles.activityRangeLabel}>{formatHourRangeLabel(activity, selectedBucket)}</Text>
+      ) : null}
       <View
         style={styles.activityTrack}
         onLayout={(e) => setTrackW(e.nativeEvent.layout.width || 0)}>
@@ -174,11 +191,8 @@ export function TrackedPackageCard({
             <MaterialCommunityIcons name="map-marker-outline" size={12} color={colors.textMuted} />
           </View>
           <View style={styles.packageInfoBody}>
-            <View style={styles.packageInfoLabelSlot}>
-              <Text style={styles.packageMetaLabel}>Loc:</Text>
-            </View>
             <Text style={styles.packageLocationInline} numberOfLines={1}>
-              Location not set
+              {pkg.locationLabel}
             </Text>
           </View>
         </View>
@@ -214,19 +228,11 @@ export function TrackedPackageCard({
             </Text>
           </View>
         </View>
-        <View style={styles.progressTrack}>
-          <View
-            style={[
-              styles.progressFill,
-              { width: pkg.status === 'safe' ? '32%' : '78%', backgroundColor: tone },
-            ]}
-          />
-        </View>
         <View style={styles.packageRight}>
+          <Text style={styles.damageText}>Events: {pkg.score}</Text>
           <Text style={[styles.statusPill, { color: tone, backgroundColor: `${tone}20` }]}>
             {palette.packageStatusLabel(pkg.status)}
           </Text>
-          <Text style={styles.damageText}>Events: {pkg.score}</Text>
         </View>
       </View>
     </Pressable>

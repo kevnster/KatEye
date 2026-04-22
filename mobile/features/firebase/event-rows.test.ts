@@ -83,4 +83,33 @@ describe('alertsMapToRows', () => {
   it('skips entries without device / package id', () => {
     expect(alertsMapToRows({ x: { timestamp: 1 } })).toHaveLength(0);
   });
+
+  it('parses nested events containers as one row and preserves snapshot lat/lng', () => {
+    const rows = alertsMapToRows({
+      bucket1: {
+        device_id: 'KATEYE-01',
+        event_count: 2,
+        timestamp: 2000,
+        snapshot: {
+          accel_x: [1],
+          accel_y: [2],
+          accel_z: [3],
+          gyro_x: [0.1],
+          gyro_y: [0.2],
+          gyro_z: [0.3],
+          lat: 29.64,
+          lng: -82.34,
+        },
+        events: {
+          0: { event_type: 'Alert', timestamp: 1000, lat: 29.64, lng: -82.34 },
+          1: { event_type: 'Impact', timestamp: 1500, lat: '29.65', lng: '-82.35' },
+        },
+      },
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].device_id).toBe('KATEYE-01');
+    expect(rows[0].event_type).toBe('Impact');
+    expect(rows[0].latitude).toBeCloseTo(29.64);
+    expect(rows[0].longitude).toBeCloseTo(-82.34);
+  });
 });

@@ -1,5 +1,6 @@
 import { formatPackageIdTitle } from '@/features/firebase/hardware-payload';
 import { formatTimestampEst24h, type AlertEventRow } from '@/features/firebase/event-rows';
+import { nearbyLocationLabel, syntheticCoordForDevice } from '@/features/map/nearby-location';
 import type { ThemeColors } from '@/styles/app-theme';
 import type {
   DashboardAlert,
@@ -19,6 +20,7 @@ const DAY_MS = 86_400_000;
 
 export type BuildFleetDashboardOptions = {
   nowMs?: number;
+  use12h?: boolean;
 };
 
 export function createDashboardPalette(colors: ThemeColors) {
@@ -150,6 +152,7 @@ export function buildFleetDashboard(
   if (events.length === 0) return null;
 
   const nowMs = options?.nowMs ?? Date.now();
+  const use12h = options?.use12h ?? false;
   const windowEndMs = nowMs;
   const windowStartMs = nowMs - DAY_MS;
 
@@ -164,9 +167,14 @@ export function buildFleetDashboard(
     const rows = byDevice.get(id)!;
     const latest = rows[rows.length - 1]!;
     const first = rows[0]!;
+    const coord =
+      latest.latitude != null && latest.longitude != null
+        ? { latitude: latest.latitude, longitude: latest.longitude }
+        : syntheticCoordForDevice(id);
     return {
       id,
       name: formatPackageIdTitle(id),
+      locationLabel: nearbyLocationLabel(coord),
       lastEventType: latest.event_type,
       lastEventRelative: formatRelativeSince(nowMs, latest.timestamp),
       firstEventType: first.event_type,
@@ -206,7 +214,7 @@ export function buildFleetDashboard(
     {
       id: 'latest',
       label: 'Last alert',
-      value: latestTs ? formatTimestampEst24h(latestTs) : '—',
+      value: latestTs ? formatTimestampEst24h(latestTs, use12h) : '—',
       kind: 'value',
     },
   ];

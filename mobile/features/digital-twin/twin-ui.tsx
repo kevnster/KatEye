@@ -1,5 +1,6 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import type { ViewStyle } from 'react-native';
 import { Pressable, Text, View } from 'react-native';
@@ -12,6 +13,7 @@ import {
   type AlertEventRow,
   type ImuSnapshot,
 } from '@/features/firebase/event-rows';
+import { nearbyLocationLabel } from '@/features/map/nearby-location';
 import type { ThemeColors } from '@/styles/app-theme';
 
 type TwinStyles = ReturnType<typeof createDigitalTwinStyles>;
@@ -52,7 +54,7 @@ export type DigitalTwinTelemetry = {
   sampleTimeLabel: string | null;
 };
 
-export function buildTwinTelemetry(row: AlertEventRow): DigitalTwinTelemetry {
+export function buildTwinTelemetry(row: AlertEventRow, use12h = false): DigitalTwinTelemetry {
   const { snapshot } = row;
   if (!snapshot || snapshot.accel_x.length === 0) {
     return {
@@ -60,7 +62,7 @@ export function buildTwinTelemetry(row: AlertEventRow): DigitalTwinTelemetry {
       batchLabel: row.event_type,
       locationLabel: row.event_type,
       sample: null,
-      sampleTimeLabel: row.timestamp ? `${formatTimestampEstMmDdYyAnd24h(row.timestamp)} EST` : null,
+      sampleTimeLabel: row.timestamp ? `${formatTimestampEstMmDdYyAnd24h(row.timestamp, use12h)} EST` : null,
     };
   }
   const n = snapshot.accel_x.length;
@@ -81,7 +83,7 @@ export function buildTwinTelemetry(row: AlertEventRow): DigitalTwinTelemetry {
     batchLabel: row.event_type,
     locationLabel: row.event_type,
     sample,
-    sampleTimeLabel: `${formatTimestampEstMmDdYyAnd24h(row.timestamp)} EST`,
+    sampleTimeLabel: `${formatTimestampEstMmDdYyAnd24h(row.timestamp, use12h)} EST`,
   };
 }
 
@@ -111,16 +113,24 @@ export function TwinViewport({
 
 export function TwinTelemetrySections({
   telemetry,
+  previousSnapshot,
   styles,
   colors,
   timeSectionTitle = 'Sample time',
 }: {
   telemetry: DigitalTwinTelemetry;
+  previousSnapshot?: ImuSnapshot | null;
   styles: TwinStyles;
   colors: ThemeColors;
   timeSectionTitle?: string;
 }) {
   const { sample, sampleTimeLabel } = telemetry;
+  const prevAccelIdx = previousSnapshot?.accel_x?.length ? previousSnapshot.accel_x.length - 1 : -1;
+  const prevAccel = {
+    x: prevAccelIdx >= 0 ? (previousSnapshot?.accel_x[prevAccelIdx] ?? null) : null,
+    y: prevAccelIdx >= 0 ? (previousSnapshot?.accel_y[prevAccelIdx] ?? null) : null,
+    z: prevAccelIdx >= 0 ? (previousSnapshot?.accel_z[prevAccelIdx] ?? null) : null,
+  };
   return (
     <>
       <View style={styles.lastUpdatedRow}>
@@ -141,15 +151,33 @@ export function TwinTelemetrySections({
         <View style={styles.metricsRow}>
           <View style={styles.metricCard}>
             <Text style={styles.metricLabel}>axis_x</Text>
-            <Text style={styles.metricValue}>{sample ? sample.accel.x.toFixed(2) : '—'}</Text>
+            <ValueWithTrend
+              styles={styles}
+              colors={colors}
+              value={sample ? sample.accel.x : null}
+              previous={prevAccel.x}
+              decimals={2}
+            />
           </View>
           <View style={styles.metricCard}>
             <Text style={styles.metricLabel}>axis_y</Text>
-            <Text style={styles.metricValue}>{sample ? sample.accel.y.toFixed(2) : '—'}</Text>
+            <ValueWithTrend
+              styles={styles}
+              colors={colors}
+              value={sample ? sample.accel.y : null}
+              previous={prevAccel.y}
+              decimals={2}
+            />
           </View>
           <View style={styles.metricCard}>
             <Text style={[styles.metricLabel, styles.metricLabelSecondary]}>axis_z</Text>
-            <Text style={styles.metricValue}>{sample ? sample.accel.z.toFixed(2) : '—'}</Text>
+            <ValueWithTrend
+              styles={styles}
+              colors={colors}
+              value={sample ? sample.accel.z : null}
+              previous={prevAccel.z}
+              decimals={2}
+            />
           </View>
         </View>
       </View>
@@ -157,12 +185,58 @@ export function TwinTelemetrySections({
   );
 }
 
-export function TwinGyroSections({ snapshot, styles }: { snapshot: ImuSnapshot; styles: TwinStyles }) {
+function metricTrend(current: number | null, previous: number | null): 'up' | 'down' | 'flat' | 'none' {
+  if (current == null || previous == null) return 'none';
+  const delta = current - previous;
+  if (Math.abs(delta) < 0.001) return 'flat';
+  return delta > 0 ? 'up' : 'down';
+}
+
+function ValueWithTrend({
+  styles,
+  colors,
+  value,
+  previous,
+  decimals,
+}: {
+  styles: TwinStyles;
+  colors: ThemeColors;
+  value: number | null;
+  previous: number | null;
+  decimals: number;
+}) {
+  const trend = metricTrend(value, previous);
+  const iconName =
+    trend === 'up' ? 'arrow-up-thin' : trend === 'down' ? 'arrow-down-thin' : trend === 'flat' ? 'minus' : null;
+  const iconColor = trend === 'up' ? colors.warning : trend === 'down' ? colors.danger : colors.textMuted;
+  return (
+    <View style={styles.metricValueRow}>
+      <Text style={styles.metricValue}>{value != null ? value.toFixed(decimals) : '—'}</Text>
+      {iconName ? <MaterialCommunityIcons name={iconName} size={14} color={iconColor} /> : null}
+    </View>
+  );
+}
+
+export function TwinGyroSections({
+  snapshot,
+  previousSnapshot,
+  styles,
+  colors,
+}: {
+  snapshot: ImuSnapshot;
+  previousSnapshot?: ImuSnapshot | null;
+  styles: TwinStyles;
+  colors: ThemeColors;
+}) {
   const n = snapshot.gyro_x.length;
   const i = Math.max(0, n - 1);
   const gx = n ? snapshot.gyro_x[i] : null;
   const gy = n ? snapshot.gyro_y[i] : null;
   const gz = n ? snapshot.gyro_z[i] : null;
+  const prevGyroIdx = previousSnapshot?.gyro_x?.length ? previousSnapshot.gyro_x.length - 1 : -1;
+  const prevGx = prevGyroIdx >= 0 ? (previousSnapshot?.gyro_x[prevGyroIdx] ?? null) : null;
+  const prevGy = prevGyroIdx >= 0 ? (previousSnapshot?.gyro_y[prevGyroIdx] ?? null) : null;
+  const prevGz = prevGyroIdx >= 0 ? (previousSnapshot?.gyro_z[prevGyroIdx] ?? null) : null;
   return (
     <View style={styles.sectionGap}>
       <View style={styles.sectionTitle}>
@@ -172,15 +246,15 @@ export function TwinGyroSections({ snapshot, styles }: { snapshot: ImuSnapshot; 
       <View style={styles.metricsRow}>
         <View style={styles.metricCard}>
           <Text style={styles.metricLabel}>gyro_x</Text>
-          <Text style={styles.metricValue}>{gx != null ? gx.toFixed(3) : '—'}</Text>
+          <ValueWithTrend styles={styles} colors={colors} value={gx} previous={prevGx} decimals={3} />
         </View>
         <View style={styles.metricCard}>
           <Text style={styles.metricLabel}>gyro_y</Text>
-          <Text style={styles.metricValue}>{gy != null ? gy.toFixed(3) : '—'}</Text>
+          <ValueWithTrend styles={styles} colors={colors} value={gy} previous={prevGy} decimals={3} />
         </View>
         <View style={styles.metricCard}>
           <Text style={[styles.metricLabel, styles.metricLabelSecondary]}>gyro_z</Text>
-          <Text style={styles.metricValue}>{gz != null ? gz.toFixed(3) : '—'}</Text>
+          <ValueWithTrend styles={styles} colors={colors} value={gz} previous={prevGz} decimals={3} />
         </View>
       </View>
     </View>
@@ -197,6 +271,12 @@ function lastSampleAccelMagnitude(row: AlertEventRow): string {
   return Math.sqrt(x * x + y * y + z * z).toFixed(2);
 }
 
+function compactLogId(logId: string): string {
+  const v = logId.trim();
+  if (v.length <= 18) return v;
+  return `${v.slice(0, 10)}...${v.slice(-5)}`;
+}
+
 function eventTypeSeverity(eventType: string): 'default' | 'warn' | 'critical' {
   const t = eventType.toLowerCase();
   if (t.includes('impact')) return 'critical';
@@ -206,15 +286,30 @@ function eventTypeSeverity(eventType: string): 'default' | 'warn' | 'critical' {
 }
 
 function ImuSnapshotExpand({
+  eventKey,
+  latitude,
+  longitude,
   snapshot,
   styles,
 }: {
+  eventKey: string;
+  latitude?: number | null;
+  longitude?: number | null;
   snapshot: ImuSnapshot | null;
   styles: TwinStyles;
 }) {
+  const hasCoords = latitude != null && longitude != null;
+  const coordLocation = hasCoords ? nearbyLocationLabel({ latitude, longitude }) : 'Location unavailable';
   if (!snapshot?.accel_x?.length) {
     return (
-      <Text style={styles.telemetryLogExpandEmpty}>No accelerometer / gyroscope snapshot on this row.</Text>
+      <View style={styles.telemetryLogExpand}>
+        <Text style={styles.telemetryLogExpandMeta}>Log ID: {compactLogId(eventKey)}</Text>
+        <Text style={styles.telemetryLogExpandMeta}>
+          GPS: {hasCoords ? `${latitude.toFixed(6)}, ${longitude.toFixed(6)}` : '—'}
+        </Text>
+        <Text style={styles.telemetryLogExpandMeta}>Approx: {coordLocation}</Text>
+        <Text style={styles.telemetryLogExpandEmpty}>No accelerometer / gyroscope snapshot on this row.</Text>
+      </View>
     );
   }
   const n = snapshot.accel_x.length;
@@ -227,6 +322,11 @@ function ImuSnapshotExpand({
   const gz = snapshot.gyro_z[i] ?? 0;
   return (
     <View style={styles.telemetryLogExpand}>
+      <Text style={styles.telemetryLogExpandMeta}>Log ID: {compactLogId(eventKey)}</Text>
+      <Text style={styles.telemetryLogExpandMeta}>
+        GPS: {hasCoords ? `${latitude.toFixed(6)}, ${longitude.toFixed(6)}` : '—'}
+      </Text>
+      <Text style={styles.telemetryLogExpandMeta}>Approx: {coordLocation}</Text>
       <Text style={styles.telemetryLogExpandMeta}>Samples: {n}</Text>
       <View style={styles.telemetryLogExpandBlock}>
         <Text style={styles.telemetryLogExpandCaption}>Accel</Text>
@@ -248,10 +348,14 @@ export function TwinEventLog({
   events,
   styles,
   colors,
+  filtersUi,
+  use12h = false,
 }: {
   events: AlertEventRow[];
   styles: TwinStyles;
   colors: ThemeColors;
+  filtersUi?: ReactNode;
+  use12h?: boolean;
 }) {
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const toggle = (key: string) => setOpen((o) => ({ ...o, [key]: !o[key] }));
@@ -263,6 +367,7 @@ export function TwinEventLog({
         <View style={styles.sectionTitleBar} />
         <Text style={styles.sectionTitleText}>Telemetry · earlier events</Text>
       </View>
+      {filtersUi ? <View style={styles.telemetryFiltersInline}>{filtersUi}</View> : null}
       <View style={styles.telemetryLogCard}>
         {events.map((row, idx) => {
           const sev = eventTypeSeverity(row.event_type);
@@ -274,19 +379,17 @@ export function TwinEventLog({
               key={row.eventKey}
               style={[styles.telemetryLogRow, idx === 0 && styles.telemetryLogRowFirst]}
               accessibilityLabel={`${row.event_type} at ${row.eventKey}`}>
-              <View style={styles.telemetryLogRowHeader}>
-                <Text style={[styles.telemetryLogTimeRange, { color: typeColor }]} numberOfLines={1}>
-                  {row.event_type}
-                </Text>
-                <Text style={styles.telemetryLogNominal}>|a| {lastSampleAccelMagnitude(row)}</Text>
-              </View>
-              <Text style={styles.ledgerTime}>
-                {row.timestamp ? `${formatTimestampEstMmDdYyAnd24h(row.timestamp)} EST` : '—'}
-              </Text>
-              <View style={styles.telemetryLogMetaRow}>
-                <Text style={styles.telemetryLogEvents} numberOfLines={1}>
-                  {row.eventKey}
-                </Text>
+              <View style={styles.telemetryLogMainRow}>
+                <View style={styles.telemetryLogInfoCol}>
+                  <View style={styles.telemetryLogRowHeader}>
+                    <Text style={[styles.telemetryLogTimeRange, { color: typeColor }]} numberOfLines={1}>
+                      {row.event_type}
+                    </Text>
+                  </View>
+                  <Text style={styles.ledgerTime}>
+                    {row.timestamp ? `${formatTimestampEstMmDdYyAnd24h(row.timestamp, use12h)} EST` : '—'}
+                  </Text>
+                </View>
                 <Pressable
                   onPress={() => toggle(row.eventKey)}
                   accessibilityRole="button"
@@ -302,7 +405,15 @@ export function TwinEventLog({
                   />
                 </Pressable>
               </View>
-              {isOpen ? <ImuSnapshotExpand snapshot={row.snapshot} styles={styles} /> : null}
+              {isOpen ? (
+                <ImuSnapshotExpand
+                  eventKey={row.eventKey}
+                  latitude={row.latitude}
+                  longitude={row.longitude}
+                  snapshot={row.snapshot}
+                  styles={styles}
+                />
+              ) : null}
             </View>
           );
         })}

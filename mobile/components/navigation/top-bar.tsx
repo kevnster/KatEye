@@ -14,7 +14,7 @@ export function TopBar() {
   return (
     <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
       <View style={styles.logoContainer}>
-        <MaterialCommunityIcons name="shield-check" size={24} color={colors.primary} />
+        <MaterialCommunityIcons name="cat" size={26} color={colors.primary} />
         <Text style={styles.logoText}>KATEYE</Text>
       </View>
       <View style={styles.topBarActions}>

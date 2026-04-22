@@ -35,6 +35,7 @@ export type EventTypeSlice = {
 export type DashboardPackage = {
   id: string;
   name: string;
+  locationLabel: string;
   lastEventType: string;
   lastEventRelative: string;
   firstEventType: string;

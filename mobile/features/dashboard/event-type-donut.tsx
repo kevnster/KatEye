@@ -1,15 +1,6 @@
-import { useFocusEffect } from '@react-navigation/native';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Text, View } from 'react-native';
+import { useEffect, useMemo, useRef } from 'react';
+import { Animated, Easing, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import {
-  cancelAnimation,
-  Easing,
-  runOnJS,
-  useAnimatedReaction,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
 
 import { resolveEventTypeColor } from '@/features/dashboard/event-type-colors';
 import type { DashboardStyles } from '@/features/dashboard/styles/index.styles';
@@ -34,6 +25,9 @@ function donutSlicePath(
 ): string {
   const sweep = endDeg - startDeg;
   if (sweep <= 0.05) return '';
+  if (sweep >= 359.95) {
+    return fullDonutPath(cx, cy, rOut, rIn);
+  }
   const largeArc = sweep > 180 ? 1 : 0;
   const p1 = polar(cx, cy, rOut, startDeg);
   const p2 = polar(cx, cy, rOut, endDeg);
@@ -44,6 +38,22 @@ function donutSlicePath(
     `A ${rOut} ${rOut} 0 ${largeArc} 1 ${p2.x} ${p2.y}`,
     `L ${p3.x} ${p3.y}`,
     `A ${rIn} ${rIn} 0 ${largeArc} 0 ${p4.x} ${p4.y}`,
+    'Z',
+  ].join(' ');
+}
+
+function fullDonutPath(cx: number, cy: number, rOut: number, rIn: number): string {
+  const outTop = polar(cx, cy, rOut, 0);
+  const outBottom = polar(cx, cy, rOut, 180);
+  const inTop = polar(cx, cy, rIn, 0);
+  const inBottom = polar(cx, cy, rIn, 180);
+  return [
+    `M ${outTop.x} ${outTop.y}`,
+    `A ${rOut} ${rOut} 0 1 1 ${outBottom.x} ${outBottom.y}`,
+    `A ${rOut} ${rOut} 0 1 1 ${outTop.x} ${outTop.y}`,
+    `M ${inTop.x} ${inTop.y}`,
+    `A ${rIn} ${rIn} 0 1 0 ${inBottom.x} ${inBottom.y}`,
+    `A ${rIn} ${rIn} 0 1 0 ${inTop.x} ${inTop.y}`,
     'Z',
   ].join(' ');
 }
@@ -93,52 +103,21 @@ export function EventTypeDonut({
   const cy = DONUT_SIZE / 2;
   const rOut = DONUT_SIZE / 2 - STROKE_PAD;
   const rIn = rOut * 0.55;
-
-  const progress = useSharedValue(0);
-  const [paths, setPaths] = useState<{ key: string; d: string; color: string }[]>([]);
-
-  const slicesKey = useMemo(
-    () => slices.map((s) => `${s.eventType}:${s.count}`).join('|'),
-    [slices],
-  );
-
-  const applyProgress = useCallback(
-    (p: number) => {
-      setPaths(buildPathsForProgress(slices, p, colors, cx, cy, rOut, rIn));
-    },
+  const paths = useMemo(
+    () => buildPathsForProgress(slices, 1, colors, cx, cy, rOut, rIn),
     [slices, colors, cx, cy, rOut, rIn],
   );
-
-  const runReplay = useCallback(() => {
-    cancelAnimation(progress);
-    progress.value = 0;
-    applyProgress(0);
-    progress.value = withTiming(1, {
-      duration: 950,
-      easing: Easing.out(Easing.cubic),
-    });
-  }, [progress, applyProgress]);
-
-  useAnimatedReaction(
-    () => progress.value,
-    (p) => {
-      runOnJS(applyProgress)(p);
-    },
-    [applyProgress],
-  );
-
-  useFocusEffect(
-    useCallback(() => {
-      runReplay();
-      return () => {
-        cancelAnimation(progress);
-      };
-    }, [runReplay, progress]),
-  );
+  const transition = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    runReplay();
-  }, [slicesKey, runReplay]);
+    transition.setValue(0.86);
+    Animated.timing(transition, {
+      toValue: 1,
+      duration: 220,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [transition, slices]);
 
   if (slices.length === 0) return null;
 
@@ -147,11 +126,13 @@ export function EventTypeDonut({
       <Text style={styles.mixLabel}>Event types</Text>
       <View style={styles.mixDonutRow}>
         <View style={styles.mixDonutSvgWrap}>
-          <Svg width={DONUT_SIZE} height={DONUT_SIZE} viewBox={`0 0 ${DONUT_SIZE} ${DONUT_SIZE}`}>
-            {paths.map((p) => (
-              <Path key={p.key} d={p.d} fill={p.color} />
-            ))}
-          </Svg>
+          <Animated.View style={{ opacity: transition, transform: [{ scale: transition }] }}>
+            <Svg width={DONUT_SIZE} height={DONUT_SIZE} viewBox={`0 0 ${DONUT_SIZE} ${DONUT_SIZE}`}>
+              {paths.map((p) => (
+                <Path key={p.key} d={p.d} fill={p.color} fillRule="evenodd" />
+              ))}
+            </Svg>
+          </Animated.View>
         </View>
         <View style={styles.mixLegendCol}>
           {slices.map((s) => {
