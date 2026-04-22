@@ -1,6 +1,8 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useCallback, useMemo } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
+import MapView, { Marker, type Region } from 'react-native-maps';
 
 import { TopBar } from '@/components/navigation/top-bar';
 import { useAlertEvents } from '@/context/alerts-events';
@@ -11,16 +13,14 @@ import {
   TwinEventLog,
   TwinGyroSections,
   TwinTelemetrySections,
-  TwinViewport,
   useFreshWithin,
-  useTwinScanLine,
 } from '@/features/digital-twin/twin-ui';
 import { formatPackageIdTitle } from '@/features/firebase/hardware-payload';
+import { nearbyLocationLabel, syntheticCoordForDevice } from '@/features/map/nearby-location';
 
 type Props = { deviceId: string };
 
 const LIVE_WINDOW_MS = 30_000;
-
 export function DigitalTwinScreen({ deviceId }: Props) {
   const { colors } = useAppTheme();
   const { events: allEvents, status: alertsStatus, message: alertsMessage, refresh: refreshAlerts } =
@@ -40,9 +40,21 @@ export function DigitalTwinScreen({ deviceId }: Props) {
   }, [deviceEvents]);
 
   const latestTelemetry = useMemo(() => (latest ? buildTwinTelemetry(latest) : null), [latest]);
+  const locationPreview = useMemo(() => {
+    const c =
+      latest?.latitude != null && latest?.longitude != null
+        ? { latitude: latest.latitude, longitude: latest.longitude }
+        : syntheticCoordForDevice(deviceId);
+    const region: Region = {
+      latitude: c.latitude,
+      longitude: c.longitude,
+      latitudeDelta: 0.0105,
+      longitudeDelta: 0.0105,
+    };
+    return { ...c, region, label: nearbyLocationLabel(c) };
+  }, [deviceId, latest?.latitude, latest?.longitude]);
 
   const styles = useMemo(() => createDigitalTwinStyles(colors), [colors]);
-  const { scanStyle } = useTwinScanLine();
 
   const onRefresh = useCallback(() => {
     void refreshAlerts();
@@ -77,7 +89,32 @@ export function DigitalTwinScreen({ deviceId }: Props) {
               </View>
             </View>
 
-            <TwinViewport styles={styles} scanStyle={scanStyle} />
+            <View style={styles.sectionGap}>
+              <View style={styles.sectionTitle}>
+                <View style={styles.sectionTitleBar} />
+                <Text style={styles.sectionTitleText}>Location</Text>
+              </View>
+              <Pressable
+                onPress={() => router.push({ pathname: '/(tabs)/map', params: { packageId: deviceId } })}
+                style={({ pressed }) => [styles.twinMapCard, pressed && { opacity: 0.94 }]}>
+                <MapView
+                  style={styles.twinMap}
+                  region={locationPreview.region}
+                  pointerEvents="none"
+                  rotateEnabled={false}
+                  scrollEnabled={false}
+                  zoomEnabled={false}
+                  pitchEnabled={false}
+                  toolbarEnabled={false}
+                  showsCompass={false}
+                  showsPointsOfInterest={false}
+                  showsBuildings={false}
+                  showsIndoors={false}>
+                  <Marker coordinate={{ latitude: locationPreview.latitude, longitude: locationPreview.longitude }} />
+                </MapView>
+              </Pressable>
+              <Text style={styles.screenMetaHint}>{locationPreview.label}</Text>
+            </View>
 
             <TwinTelemetrySections
               telemetry={latestTelemetry}

@@ -81,6 +81,19 @@ export function createDigitalTwinStyles(c: ThemeColors) {
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: `${c.border}99`,
     },
+    twinMapCard: {
+      width: '100%',
+      height: 160,
+      borderRadius: t.radius.md,
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: c.border,
+      backgroundColor: c.surface,
+    },
+    twinMap: {
+      width: '100%',
+      height: '100%',
+    },
     twinSectionInner: {
       flex: 1,
       alignItems: 'center',
@@ -277,9 +290,21 @@ export function createDigitalTwinStyles(c: ThemeColors) {
       justifyContent: 'space-between',
       gap: 6,
     },
+    telemetryLogMainRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      minWidth: 0,
+    },
+    telemetryLogInfoCol: {
+      flex: 1,
+      minWidth: 0,
+      gap: 2,
+    },
     telemetryLogMetaRow: {
       flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'flex-end',
       gap: 6,
       width: '100%',
       minWidth: 0,
@@ -287,6 +312,15 @@ export function createDigitalTwinStyles(c: ThemeColors) {
     telemetryLogToggleBtn: {
       marginLeft: 2,
       padding: 2,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    telemetryLogToggleText: {
+      flex: 1,
+      minWidth: 0,
+      fontSize: 11,
+      color: c.textMuted,
+      fontFamily: 'monospace',
     },
     telemetryLogTimeRange: {
       flex: 1,

@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
 import { TopBar } from '@/components/navigation/top-bar';
 import { useAlertEvents } from '@/context/alerts-events';
@@ -23,9 +23,20 @@ export default function HomeScreen() {
     status: alertsStatus,
     message: alertsMessage,
     events: alertEvents,
+    refresh,
   } = useAlertEvents();
   const dashboard = useMemo(() => buildFleetDashboard(alertEvents), [alertEvents]);
   const [selectedBucket, setSelectedBucket] = useState<number | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onPullRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await refresh();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refresh]);
 
   const filteredPackages = useMemo(() => {
     if (!dashboard || selectedBucket == null) return dashboard?.packages ?? [];
@@ -38,7 +49,11 @@ export default function HomeScreen() {
   return (
     <View style={styles.page}>
       <TopBar />
-      <View style={styles.overviewColumn}>
+      <ScrollView
+        style={styles.overviewColumn}
+        contentContainerStyle={{ gap: 8, paddingBottom: 8 }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void onPullRefresh()} />}>
         <View style={styles.heroRow}>
           <Text style={styles.heading}>Fleet Overview</Text>
         </View>
@@ -62,11 +77,7 @@ export default function HomeScreen() {
                 </Pressable>
               ) : null}
             </View>
-            <ScrollView
-              style={styles.deviceScroll}
-              contentContainerStyle={styles.deviceScrollContent}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled">
+            <View style={styles.deviceScrollContent}>
               {filteredPackages.length === 0 ? (
                 <Text style={styles.testMessage}>No devices in this hour.</Text>
               ) : (
@@ -83,7 +94,7 @@ export default function HomeScreen() {
                   />
                 ))
               )}
-            </ScrollView>
+            </View>
             <CriticalWindowsSection alerts={dashboard.alerts} styles={styles} palette={palette} compact />
           </>
         ) : (
@@ -95,7 +106,7 @@ export default function HomeScreen() {
                 : 'No alerts yet. Push data to RTDB path "alerts" or use fixture mode (EXPO_PUBLIC_RTD_USE_FIXTURE=1 / empty DATABASE_URL).'}
           </Text>
         )}
-      </View>
+      </ScrollView>
     </View>
   );
 }

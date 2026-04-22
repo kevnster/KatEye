@@ -174,11 +174,8 @@ export function TrackedPackageCard({
             <MaterialCommunityIcons name="map-marker-outline" size={12} color={colors.textMuted} />
           </View>
           <View style={styles.packageInfoBody}>
-            <View style={styles.packageInfoLabelSlot}>
-              <Text style={styles.packageMetaLabel}>Loc:</Text>
-            </View>
             <Text style={styles.packageLocationInline} numberOfLines={1}>
-              Location not set
+              {pkg.locationLabel}
             </Text>
           </View>
         </View>

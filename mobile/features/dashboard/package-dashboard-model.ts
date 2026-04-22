@@ -1,5 +1,6 @@
 import { formatPackageIdTitle } from '@/features/firebase/hardware-payload';
 import { formatTimestampEst24h, type AlertEventRow } from '@/features/firebase/event-rows';
+import { nearbyLocationLabel, syntheticCoordForDevice } from '@/features/map/nearby-location';
 import type { ThemeColors } from '@/styles/app-theme';
 import type {
   DashboardAlert,
@@ -164,9 +165,14 @@ export function buildFleetDashboard(
     const rows = byDevice.get(id)!;
     const latest = rows[rows.length - 1]!;
     const first = rows[0]!;
+    const coord =
+      latest.latitude != null && latest.longitude != null
+        ? { latitude: latest.latitude, longitude: latest.longitude }
+        : syntheticCoordForDevice(id);
     return {
       id,
       name: formatPackageIdTitle(id),
+      locationLabel: nearbyLocationLabel(coord),
       lastEventType: latest.event_type,
       lastEventRelative: formatRelativeSince(nowMs, latest.timestamp),
       firstEventType: first.event_type,

@@ -12,6 +12,7 @@ import {
   type AlertEventRow,
   type ImuSnapshot,
 } from '@/features/firebase/event-rows';
+import { nearbyLocationLabel } from '@/features/map/nearby-location';
 import type { ThemeColors } from '@/styles/app-theme';
 
 type TwinStyles = ReturnType<typeof createDigitalTwinStyles>;
@@ -197,6 +198,12 @@ function lastSampleAccelMagnitude(row: AlertEventRow): string {
   return Math.sqrt(x * x + y * y + z * z).toFixed(2);
 }
 
+function compactLogId(logId: string): string {
+  const v = logId.trim();
+  if (v.length <= 18) return v;
+  return `${v.slice(0, 10)}...${v.slice(-5)}`;
+}
+
 function eventTypeSeverity(eventType: string): 'default' | 'warn' | 'critical' {
   const t = eventType.toLowerCase();
   if (t.includes('impact')) return 'critical';
@@ -206,15 +213,30 @@ function eventTypeSeverity(eventType: string): 'default' | 'warn' | 'critical' {
 }
 
 function ImuSnapshotExpand({
+  eventKey,
+  latitude,
+  longitude,
   snapshot,
   styles,
 }: {
+  eventKey: string;
+  latitude?: number | null;
+  longitude?: number | null;
   snapshot: ImuSnapshot | null;
   styles: TwinStyles;
 }) {
+  const hasCoords = latitude != null && longitude != null;
+  const coordLocation = hasCoords ? nearbyLocationLabel({ latitude, longitude }) : 'Location unavailable';
   if (!snapshot?.accel_x?.length) {
     return (
-      <Text style={styles.telemetryLogExpandEmpty}>No accelerometer / gyroscope snapshot on this row.</Text>
+      <View style={styles.telemetryLogExpand}>
+        <Text style={styles.telemetryLogExpandMeta}>Log ID: {compactLogId(eventKey)}</Text>
+        <Text style={styles.telemetryLogExpandMeta}>
+          GPS: {hasCoords ? `${latitude.toFixed(6)}, ${longitude.toFixed(6)}` : '—'}
+        </Text>
+        <Text style={styles.telemetryLogExpandMeta}>Approx: {coordLocation}</Text>
+        <Text style={styles.telemetryLogExpandEmpty}>No accelerometer / gyroscope snapshot on this row.</Text>
+      </View>
     );
   }
   const n = snapshot.accel_x.length;
@@ -227,6 +249,11 @@ function ImuSnapshotExpand({
   const gz = snapshot.gyro_z[i] ?? 0;
   return (
     <View style={styles.telemetryLogExpand}>
+      <Text style={styles.telemetryLogExpandMeta}>Log ID: {compactLogId(eventKey)}</Text>
+      <Text style={styles.telemetryLogExpandMeta}>
+        GPS: {hasCoords ? `${latitude.toFixed(6)}, ${longitude.toFixed(6)}` : '—'}
+      </Text>
+      <Text style={styles.telemetryLogExpandMeta}>Approx: {coordLocation}</Text>
       <Text style={styles.telemetryLogExpandMeta}>Samples: {n}</Text>
       <View style={styles.telemetryLogExpandBlock}>
         <Text style={styles.telemetryLogExpandCaption}>Accel</Text>
@@ -274,19 +301,17 @@ export function TwinEventLog({
               key={row.eventKey}
               style={[styles.telemetryLogRow, idx === 0 && styles.telemetryLogRowFirst]}
               accessibilityLabel={`${row.event_type} at ${row.eventKey}`}>
-              <View style={styles.telemetryLogRowHeader}>
-                <Text style={[styles.telemetryLogTimeRange, { color: typeColor }]} numberOfLines={1}>
-                  {row.event_type}
-                </Text>
-                <Text style={styles.telemetryLogNominal}>|a| {lastSampleAccelMagnitude(row)}</Text>
-              </View>
-              <Text style={styles.ledgerTime}>
-                {row.timestamp ? `${formatTimestampEstMmDdYyAnd24h(row.timestamp)} EST` : '—'}
-              </Text>
-              <View style={styles.telemetryLogMetaRow}>
-                <Text style={styles.telemetryLogEvents} numberOfLines={1}>
-                  {row.eventKey}
-                </Text>
+              <View style={styles.telemetryLogMainRow}>
+                <View style={styles.telemetryLogInfoCol}>
+                  <View style={styles.telemetryLogRowHeader}>
+                    <Text style={[styles.telemetryLogTimeRange, { color: typeColor }]} numberOfLines={1}>
+                      {row.event_type}
+                    </Text>
+                  </View>
+                  <Text style={styles.ledgerTime}>
+                    {row.timestamp ? `${formatTimestampEstMmDdYyAnd24h(row.timestamp)} EST` : '—'}
+                  </Text>
+                </View>
                 <Pressable
                   onPress={() => toggle(row.eventKey)}
                   accessibilityRole="button"
@@ -302,7 +327,15 @@ export function TwinEventLog({
                   />
                 </Pressable>
               </View>
-              {isOpen ? <ImuSnapshotExpand snapshot={row.snapshot} styles={styles} /> : null}
+              {isOpen ? (
+                <ImuSnapshotExpand
+                  eventKey={row.eventKey}
+                  latitude={row.latitude}
+                  longitude={row.longitude}
+                  snapshot={row.snapshot}
+                  styles={styles}
+                />
+              ) : null}
             </View>
           );
         })}

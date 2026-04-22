@@ -22,6 +22,8 @@ export type AlertEventRow = {
   event_type: string;
   timestamp: number;
   snapshot: ImuSnapshot | null;
+  latitude?: number | null;
+  longitude?: number | null;
 };
 
 export const ALERTS_RTD_PATH = 'alerts' as const;
@@ -111,6 +113,36 @@ function deviceIdFrom(raw: Record<string, unknown>): string {
   ).trim();
 }
 
+function normalizeCoord(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim()) {
+    const n = Number(value);
+    if (Number.isFinite(n)) return n;
+  }
+  return null;
+}
+
+function latFrom(raw: Record<string, unknown>): number | null {
+  const snapshot =
+    raw.snapshot && typeof raw.snapshot === 'object' ? (raw.snapshot as Record<string, unknown>) : null;
+  return normalizeCoord(raw.lat ?? raw.latitude ?? snapshot?.lat ?? snapshot?.latitude);
+}
+
+function lngFrom(raw: Record<string, unknown>): number | null {
+  const snapshot =
+    raw.snapshot && typeof raw.snapshot === 'object' ? (raw.snapshot as Record<string, unknown>) : null;
+  return normalizeCoord(raw.lng ?? raw.lon ?? raw.longitude ?? snapshot?.lng ?? snapshot?.lon ?? snapshot?.longitude);
+}
+
+function timeFrom(raw: Record<string, unknown>): number {
+  return (
+    normalizeAlertTimestamp(raw.timestamp) ||
+    normalizeAlertTimestamp(raw.created_at) ||
+    normalizeAlertTimestamp(raw.time) ||
+    normalizeAlertTimestamp(raw.ts)
+  );
+}
+
 // live rtdb rows may omit snapshot (fixture parse does not).
 export function alertsMapToRows(map: Record<string, unknown> | null): AlertEventRow[] {
   if (!map || typeof map !== 'object') return [];
@@ -118,19 +150,43 @@ export function alertsMapToRows(map: Record<string, unknown> | null): AlertEvent
   for (const [eventKey, raw] of Object.entries(map)) {
     if (eventKey.startsWith('_') || !raw || typeof raw !== 'object') continue;
     const e = raw as Record<string, unknown>;
-    const device_id = deviceIdFrom(e);
+    const baseDeviceId = deviceIdFrom(e);
+    const baseTs = timeFrom(e);
+    const baseSnapshot = parseImuSnapshot(e.snapshot);
+    const baseLat = latFrom(e);
+    const baseLng = lngFrom(e);
+
+    const nested = e.events;
+    let nestedCount = 0;
+    let latestNested: Record<string, unknown> | null = null;
+    let latestNestedTs = 0;
+    if (nested && typeof nested === 'object') {
+      const nestedEntries = Array.isArray(nested) ? nested.entries() : Object.entries(nested);
+      for (const [nestedKey, nestedRaw] of nestedEntries) {
+        void nestedKey;
+        if (!nestedRaw || typeof nestedRaw !== 'object') continue;
+        const ne = nestedRaw as Record<string, unknown>;
+        nestedCount += 1;
+        const nestedTs = timeFrom(ne);
+        if (nestedTs >= latestNestedTs) {
+          latestNestedTs = nestedTs;
+          latestNested = ne;
+        }
+      }
+    }
+
+    const device_id = baseDeviceId;
     if (!device_id) continue;
-    const ts =
-      normalizeAlertTimestamp(e.timestamp) ||
-      normalizeAlertTimestamp(e.created_at) ||
-      normalizeAlertTimestamp(e.time) ||
-      normalizeAlertTimestamp(e.ts);
+    const nestedLabel = latestNested ? alertLabel(latestNested) : '';
+    const event_type = nestedLabel && nestedLabel !== 'Alert' ? nestedLabel : alertLabel(e);
     rows.push({
       eventKey,
       device_id,
-      event_type: alertLabel(e),
-      timestamp: ts,
-      snapshot: parseImuSnapshot(e.snapshot),
+      event_type,
+      timestamp: latestNestedTs || baseTs,
+      snapshot: baseSnapshot,
+      latitude: baseLat,
+      longitude: baseLng,
     });
   }
   return rows.sort((a, b) => a.timestamp - b.timestamp);

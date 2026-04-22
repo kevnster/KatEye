@@ -1,15 +1,6 @@
-import { useFocusEffect } from '@react-navigation/native';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import {
-  cancelAnimation,
-  Easing,
-  runOnJS,
-  useAnimatedReaction,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
 
 import { resolveEventTypeColor } from '@/features/dashboard/event-type-colors';
 import type { DashboardStyles } from '@/features/dashboard/styles/index.styles';
@@ -93,52 +84,10 @@ export function EventTypeDonut({
   const cy = DONUT_SIZE / 2;
   const rOut = DONUT_SIZE / 2 - STROKE_PAD;
   const rIn = rOut * 0.55;
-
-  const progress = useSharedValue(0);
-  const [paths, setPaths] = useState<{ key: string; d: string; color: string }[]>([]);
-
-  const slicesKey = useMemo(
-    () => slices.map((s) => `${s.eventType}:${s.count}`).join('|'),
-    [slices],
-  );
-
-  const applyProgress = useCallback(
-    (p: number) => {
-      setPaths(buildPathsForProgress(slices, p, colors, cx, cy, rOut, rIn));
-    },
+  const paths = useMemo(
+    () => buildPathsForProgress(slices, 1, colors, cx, cy, rOut, rIn),
     [slices, colors, cx, cy, rOut, rIn],
   );
-
-  const runReplay = useCallback(() => {
-    cancelAnimation(progress);
-    progress.value = 0;
-    applyProgress(0);
-    progress.value = withTiming(1, {
-      duration: 950,
-      easing: Easing.out(Easing.cubic),
-    });
-  }, [progress, applyProgress]);
-
-  useAnimatedReaction(
-    () => progress.value,
-    (p) => {
-      runOnJS(applyProgress)(p);
-    },
-    [applyProgress],
-  );
-
-  useFocusEffect(
-    useCallback(() => {
-      runReplay();
-      return () => {
-        cancelAnimation(progress);
-      };
-    }, [runReplay, progress]),
-  );
-
-  useEffect(() => {
-    runReplay();
-  }, [slicesKey, runReplay]);
 
   if (slices.length === 0) return null;
 
