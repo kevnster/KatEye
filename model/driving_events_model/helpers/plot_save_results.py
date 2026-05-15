@@ -71,7 +71,7 @@ def plot_results(history, y_test, y_pred, class_names, output_dir, filename="tra
     axes[1].legend()
 
     # Panel 3 — Confusion matrix                                          #
-    cm   = confusion_matrix(y_test, y_pred)
+    cm   = confusion_matrix(y_test, y_pred, labels=list(range(len(class_names))))
     disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=class_names)
     disp.plot(ax=axes[2], cmap="Blues", values_format="d", colorbar=False)
     axes[2].set_title("Confusion Matrix", fontsize=14, fontweight="bold")

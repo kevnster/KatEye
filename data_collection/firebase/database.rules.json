@@ -1,0 +1,26 @@
+{
+  "rules": {
+    "datacollect": {
+      "devices": {
+        "$device_id": {
+          ".read": true,
+          ".write": true,
+          "status": {
+            ".validate": "newData.isString() && newData.val().matches(/^(idle|countdown|recording|uploading|done|error)$/)"
+          },
+          "countdown_remaining": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10"
+          },
+          "progress": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000"
+          },
+          "command": {
+            "trigger": { ".validate": "newData.isBoolean()" },
+            "label": { ".validate": "newData.isNumber() && newData.val() >= -1 && newData.val() <= 8" },
+            "label_name": { ".validate": "newData.isString()" }
+          }
+        }
+      }
+    }
+  }
+}

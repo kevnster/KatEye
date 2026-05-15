@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KatEye Data Collector</title>
+<style>
+    :root {
+        --bg: #1a1a2e;
+        --surface: #16213e;
+        --border: #0f3460;
+        --text: #e0e0e0;
+        --text-dim: #888;
+        --accent: #0f3460;
+        --green: #4caf50;
+        --red: #e74c3c;
+        --orange: #ff9800;
+        --blue: #2196f3;
+        --gray: #607d8b;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+    }
+
+    /* ── Top bar ─────────────────────────────────────────── */
+    .topbar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 20px;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+    }
+
+    .topbar h1 {
+        font-size: 18px;
+        font-weight: 600;
+    }
+
+    .connection-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--red);
+    }
+
+    .connection-dot.connected { background: var(--green); }
+
+    .status-badge {
+        padding: 3px 10px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        background: var(--gray);
+        margin-left: auto;
+    }
+
+    .status-badge.idle { background: var(--accent); }
+    .status-badge.countdown { background: var(--orange); color: #000; }
+    .status-badge.recording { background: var(--red); }
+    .status-badge.uploading { background: var(--blue); }
+    .status-badge.done { background: var(--green); color: #000; }
+    .status-badge.error { background: var(--red); }
+
+    /* ── Main layout ─────────────────────────────────────── */
+    .main {
+        display: grid;
+        grid-template-columns: 360px 1fr;
+        gap: 20px;
+        padding: 20px;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    @media (max-width: 800px) {
+        .main { grid-template-columns: 1fr; }
+    }
+
+    .panel {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 16px;
+    }
+
+    .panel h2 {
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--text-dim);
+        margin-bottom: 12px;
+    }
+
+    /* ── Button grid ─────────────────────────────────────── */
+    .btn-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+    }
+
+    .btn-grid button {
+        padding: 14px 8px;
+        border: 2px solid transparent;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 600;
+        color: #fff;
+        transition: opacity 0.15s, transform 0.1s;
+        line-height: 1.3;
+    }
+
+    .btn-grid button:hover:not(:disabled) {
+        opacity: 0.85;
+        transform: scale(1.03);
+    }
+
+    .btn-grid button:disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    /* Class colors: aggressive=red/orange, normal=blue/green, idling=gray */
+    .btn-grid button[data-label="0"] { background: var(--blue); }       /* Accelerate */
+    .btn-grid button[data-label="1"] { background: #e74c3c; }           /* Aggressive Accelerate */
+    .btn-grid button[data-label="2"] { background: #c0392b; }           /* Aggressive Brake */
+    .btn-grid button[data-label="3"] { background: #e67e22; }           /* Aggressive Left */
+    .btn-grid button[data-label="4"] { background: #d35400; }           /* Aggressive Right */
+    .btn-grid button[data-label="5"] { background: #27ae60; }           /* Brake */
+    .btn-grid button[data-label="6"] { background: var(--gray); }       /* Idling */
+    .btn-grid button[data-label="7"] { background: #2980b9; }           /* Left */
+    .btn-grid button[data-label="8"] { background: #1abc9c; }           /* Right */
+
+    /* ── Countdown overlay ───────────────────────────────── */
+    .countdown-overlay {
+        display: none;
+        text-align: center;
+        padding: 30px;
+        font-size: 72px;
+        font-weight: 700;
+        color: var(--orange);
+    }
+
+    .countdown-overlay.visible { display: block; }
+
+    /* ── Progress bar ────────────────────────────────────── */
+    .progress-container {
+        display: none;
+        margin-top: 12px;
+    }
+
+    .progress-container.visible { display: block; }
+
+    .progress-bar {
+        height: 20px;
+        background: var(--accent);
+        border-radius: 10px;
+        overflow: hidden;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: var(--green);
+        border-radius: 10px;
+        transition: width 0.3s;
+        width: 0%;
+    }
+
+    .progress-text {
+        text-align: center;
+        font-size: 13px;
+        color: var(--text-dim);
+        margin-top: 4px;
+    }
+
+    /* ── Class balance ───────────────────────────────────── */
+    .balance-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+        margin-bottom: 12px;
+    }
+
+    .balance-item {
+        text-align: center;
+        padding: 6px;
+        background: var(--bg);
+        border-radius: 6px;
+        font-size: 11px;
+    }
+
+    .balance-item .count {
+        font-size: 20px;
+        font-weight: 700;
+    }
+
+    /* ── History table ───────────────────────────────────── */
+    .history-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+    }
+
+    .history-table th {
+        text-align: left;
+        padding: 8px;
+        border-bottom: 2px solid var(--border);
+        color: var(--text-dim);
+        font-size: 11px;
+        text-transform: uppercase;
+    }
+
+    .history-table td {
+        padding: 8px;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .history-table tr.flagged td {
+        opacity: 0.5;
+        text-decoration: line-through;
+    }
+
+    .action-btn {
+        background: none;
+        border: 1px solid var(--border);
+        color: var(--text-dim);
+        padding: 3px 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 11px;
+        margin-right: 4px;
+    }
+
+    .action-btn:hover { color: var(--text); border-color: var(--text-dim); }
+    .action-btn.delete:hover { color: var(--red); border-color: var(--red); }
+
+    .empty-state {
+        text-align: center;
+        padding: 40px;
+        color: var(--text-dim);
+    }
+</style>
+</head>
+<body>
+
+<!-- ── Top bar ────────────────────────────────────────────── -->
+<div class="topbar">
+    <div class="connection-dot" id="connectionDot"></div>
+    <h1>KatEye Data Collector</h1>
+    <span id="deviceId" style="color: var(--text-dim); font-size: 13px;"></span>
+    <span class="status-badge idle" id="statusBadge">idle</span>
+</div>
+
+<!-- ── Main content ───────────────────────────────────────── -->
+<div class="main">
+
+    <!-- Left column: Controls -->
+    <div>
+        <div class="panel">
+            <h2>Recording Controls</h2>
+
+            <div class="btn-grid" id="btnGrid">
+                <button data-label="0">Accelerate<br><small>(0)</small></button>
+                <button data-label="1">Aggr.<br>Accelerate<br><small>(1)</small></button>
+                <button data-label="2">Aggr.<br>Brake<br><small>(2)</small></button>
+                <button data-label="3">Aggr.<br>Left<br><small>(3)</small></button>
+                <button data-label="4">Aggr.<br>Right<br><small>(4)</small></button>
+                <button data-label="5">Brake<br><small>(5)</small></button>
+                <button data-label="6">Idling<br><small>(6)</small></button>
+                <button data-label="7">Left<br><small>(7)</small></button>
+                <button data-label="8">Right<br><small>(8)</small></button>
+            </div>
+
+            <div class="countdown-overlay" id="countdownOverlay">3</div>
+
+            <div class="progress-container" id="progressContainer">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-text" id="progressText">0 / 560</div>
+            </div>
+        </div>
+
+        <!-- Class balance summary -->
+        <div class="panel" style="margin-top: 16px;">
+            <h2>Class Balance</h2>
+            <div class="balance-grid" id="balanceGrid"></div>
+            <div style="text-align: center; font-size: 13px; color: var(--text-dim);">
+                Total: <span id="totalCount">0</span> recordings
+            </div>
+        </div>
+    </div>
+
+    <!-- Right column: History -->
+    <div class="panel">
+        <h2>Session History</h2>
+        <div id="historyContent">
+            <div class="empty-state">No recordings yet</div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Firebase SDK ───────────────────────────────────────── -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+
+<script>
+// ── Constants ────────────────────────────────────────────────
+const CLASS_NAMES = [
+    "Accelerate", "Aggr. Accelerate", "Aggr. Brake",
+    "Aggr. Left", "Aggr. Right", "Brake",
+    "Idling", "Left", "Right"
+];
+const FULL_CLASS_NAMES = [
+    "Accelerate", "Aggressive Accelerate", "Aggressive Brake",
+    "Aggressive Left", "Aggressive Right", "Brake",
+    "Idling", "Left", "Right"
+];
+const DEVICE_ID = "kateye-collector-01";
+const NUM_SAMPLES = 560;
+
+// ── Firebase init ────────────────────────────────────────────
+firebase.initializeApp(firebaseConfig);
+const rtdb = firebase.database();
+const firestore = firebase.firestore();
+
+// ── DOM refs ─────────────────────────────────────────────────
+const connectionDot    = document.getElementById("connectionDot");
+const deviceIdEl       = document.getElementById("deviceId");
+const statusBadge      = document.getElementById("statusBadge");
+const btnGrid          = document.getElementById("btnGrid");
+const countdownOverlay = document.getElementById("countdownOverlay");
+const progressContainer= document.getElementById("progressContainer");
+const progressFill     = document.getElementById("progressFill");
+const progressText     = document.getElementById("progressText");
+const balanceGrid      = document.getElementById("balanceGrid");
+const totalCountEl     = document.getElementById("totalCount");
+const historyContent   = document.getElementById("historyContent");
+
+deviceIdEl.textContent = DEVICE_ID;
+
+// ── Build balance grid ───────────────────────────────────────
+const classCounts = new Array(9).fill(0);
+
+function renderBalance() {
+    balanceGrid.innerHTML = "";
+    let total = 0;
+    for (let i = 0; i < 9; i++) {
+        total += classCounts[i];
+        const div = document.createElement("div");
+        div.className = "balance-item";
+        div.innerHTML = `<div class="count">${classCounts[i]}</div>${CLASS_NAMES[i]}`;
+        balanceGrid.appendChild(div);
+    }
+    totalCountEl.textContent = total;
+}
+renderBalance();
+
+// ── RTDB listeners (real-time device status) ─────────────────
+const deviceRef = rtdb.ref(`datacollect/devices/${DEVICE_ID}`);
+
+deviceRef.on("value", (snap) => {
+    const data = snap.val();
+    if (!data) return;
+
+    // Connection status
+    const connected = data.connected === true;
+    connectionDot.classList.toggle("connected", connected);
+
+    // Status badge
+    const status = data.status || "idle";
+    statusBadge.textContent = status;
+    statusBadge.className = "status-badge " + status;
+
+    // Enable/disable buttons
+    const isIdle = status === "idle";
+    btnGrid.querySelectorAll("button").forEach(btn => {
+        btn.disabled = !isIdle;
+    });
+
+    // Countdown overlay
+    if (status === "countdown") {
+        const remaining = data.countdown_remaining || 0;
+        countdownOverlay.textContent = remaining > 0 ? remaining : "";
+        countdownOverlay.classList.add("visible");
+        progressContainer.classList.remove("visible");
+    } else {
+        countdownOverlay.classList.remove("visible");
+    }
+
+    // Progress bar
+    if (status === "recording" || status === "uploading") {
+        const progress = data.progress || 0;
+        const pct = Math.min(100, (progress / NUM_SAMPLES) * 100);
+        progressFill.style.width = pct + "%";
+        progressText.textContent = `${progress} / ${NUM_SAMPLES}`;
+        progressContainer.classList.add("visible");
+    } else if (status === "idle" || status === "done") {
+        progressContainer.classList.remove("visible");
+    }
+});
+
+// ── Button click → trigger recording ─────────────────────────
+btnGrid.querySelectorAll("button").forEach(btn => {
+    btn.addEventListener("click", () => {
+        const label = parseInt(btn.dataset.label);
+        const labelName = FULL_CLASS_NAMES[label];
+
+        deviceRef.child("command").set({
+            trigger: true,
+            label: label,
+            label_name: labelName,
+        });
+
+        console.log(`Triggered: label=${label} (${labelName})`);
+    });
+});
+
+// ── Firestore listener (session history) ─────────────────────
+firestore.collection("recordings")
+    .orderBy("timestamp", "desc")
+    .limit(100)
+    .onSnapshot((snapshot) => {
+        // Reset class counts
+        classCounts.fill(0);
+
+        if (snapshot.empty) {
+            historyContent.innerHTML = '<div class="empty-state">No recordings yet</div>';
+            renderBalance();
+            return;
+        }
+
+        // Count all recordings (not just visible ones)
+        snapshot.forEach(doc => {
+            const d = doc.data();
+            if (d.label >= 0 && d.label < 9) {
+                classCounts[d.label]++;
+            }
+        });
+        renderBalance();
+
+        // Build table
+        let html = `<table class="history-table">
+            <thead><tr>
+                <th>Time</th>
+                <th>Label</th>
+                <th>Device</th>
+                <th>Actions</th>
+            </tr></thead><tbody>`;
+
+        snapshot.forEach(doc => {
+            const d = doc.data();
+            const id = doc.id;
+            const flagged = d.flagged === true;
+            const ts = d.timestamp ? new Date(d.timestamp).toLocaleString() : "(pending)";
+            const labelName = CLASS_NAMES[d.label] || `Class ${d.label}`;
+
+            html += `<tr class="${flagged ? 'flagged' : ''}" data-id="${id}">
+                <td>${ts}</td>
+                <td>${d.label} - ${labelName}</td>
+                <td>${d.device_id || ""}</td>
+                <td>
+                    <button class="action-btn" onclick="toggleFlag('${id}', ${!flagged})">${flagged ? 'Unflag' : 'Flag'}</button>
+                    <button class="action-btn delete" onclick="deleteRecording('${id}')">Delete</button>
+                </td>
+            </tr>`;
+        });
+
+        html += "</tbody></table>";
+        historyContent.innerHTML = html;
+    });
+
+// ── Actions ──────────────────────────────────────────────────
+function toggleFlag(docId, flagged) {
+    firestore.collection("recordings").doc(docId).update({ flagged: flagged });
+}
+
+function deleteRecording(docId) {
+    if (!confirm("Delete this recording? This cannot be undone.")) return;
+    firestore.collection("recordings").doc(docId).delete();
+}
+</script>
+</body>
+</html>

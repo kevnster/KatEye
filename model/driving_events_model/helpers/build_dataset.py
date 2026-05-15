@@ -9,7 +9,7 @@ def normalize(X_train, X_val, X_test):
 
     The scaler is fit on a 2D view of X_train (flattening windows and timesteps
     into rows) so each channel gets its own mean and std. The same scaler is then
-    applied to val and test — they never influence the scaling parameters.
+    applied to val and test.
 
     Args:
         X_train : np.ndarray, shape (N_train, window_size, n_channels)
@@ -32,7 +32,7 @@ def normalize(X_train, X_val, X_test):
     n_channels = X_train.shape[2]
     if not (X_val.shape[2] == X_test.shape[2] == n_channels):
         raise ValueError(
-            f"Channel mismatch — train: {n_channels}, "
+            f"Channel mismatch - train: {n_channels}, "
             f"val: {X_val.shape[2]}, test: {X_test.shape[2]}"
         )
 
@@ -115,13 +115,13 @@ def build_datasets(
     # Augmentation function (closure over parameters)                     #
     def augment_window(x, y):
         # 1. Gaussian noise — independent per timestep per channel
-        x = x + tf.random.normal(shape=tf.shape(x), mean=0.0, stddev=gaussian_std)
+        x = x + tf.random.normal(shape=tf.shape(x), mean = 0.0, stddev = gaussian_std)
 
         # 2. Scaling jitter — single scalar applied to whole window
-        x = x * tf.random.uniform(shape=[], minval=jitter_min, maxval=jitter_max)
+        x = x * tf.random.uniform(shape=[], minval = jitter_min, maxval = jitter_max)
 
         # 3. Channel-wise DC offset — constant per channel, varies per window
-        x = x + tf.random.normal(shape=[n_channels], mean=0.0, stddev=dc_offset_std)
+        x = x + tf.random.normal(shape=[n_channels], mean = 0.0, stddev = dc_offset_std)
 
         return x, y
 

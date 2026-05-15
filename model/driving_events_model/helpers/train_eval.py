@@ -141,6 +141,7 @@ def evaluate_model(model, test_ds, X_test, y_test, class_names):
     print("\nClassification Report:")
     print(classification_report(
         y_test, y_pred,
+        labels       = list(range(len(class_names))),
         target_names = class_names,
         digits       = 4,
     ))

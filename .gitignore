@@ -2,6 +2,7 @@
 
 # dependencies
 node_modules/
+/model/data/
 
 # Expo
 .expo/
@@ -42,3 +43,8 @@ app-example
 # generated native folders
 /ios
 /android
+
+# Data collection — config files with secrets
+data_collection/esp32_firmware/data_collector_config.h
+data_collection/dashboard/firebase-config.js
+**/serviceAccountKey*.json

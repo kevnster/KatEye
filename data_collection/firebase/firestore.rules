@@ -1,0 +1,11 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Recordings collection — read/write for authenticated users
+    // For development: allow all access. Tighten before production.
+    match /recordings/{docId} {
+      allow read, write: if true;
+    }
+  }
+}
